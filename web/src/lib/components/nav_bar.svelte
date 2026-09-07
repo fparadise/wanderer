@@ -24,12 +24,14 @@
 
     let navBarItems = [
         { text: "Home", value: "/" },
+        { text: "Magazine", value: "/articles" },
         { text: $_("trail", { values: { n: 2 } }), value: "/trails" },
         { text: $_("map"), value: "/map" },
         { text: $_("list", { values: { n: 2 } }), value: "/lists" },
     ];
 
     const dropdownItems = [
+        { text: "Rédiger un récit", value: "new-article", icon: "feather" },
         { text: $_("profile"), value: "profile", icon: "user" },
         { text: $_("my-trails"), value: "trails", icon: "route" },
 
@@ -69,14 +71,19 @@
             case "/":
                 childPosition = 1;
                 break;
-            case "/trails":
+            case "/articles":
+            case "/articles/[id]":
+            case "/articles/new":
                 childPosition = 2;
                 break;
-            case "/map":
+            case "/trails":
                 childPosition = 3;
                 break;
-            case "/lists/[[handle]]/[[id]]":
+            case "/map":
                 childPosition = 4;
+                break;
+            case "/lists/[[handle]]/[[id]]":
+                childPosition = 5;
                 break;
             default:
                 break;
@@ -98,7 +105,9 @@
     });
 
     function handleDropdownClick(item: { text: string; value: any }) {
-        if (item.value == "profile") {
+        if (item.value == "new-article") {
+            goto("/articles/new");
+        } else if (item.value == "profile") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}`);
         } else if (item.value == "trails") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}/trails`);
