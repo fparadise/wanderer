@@ -69,6 +69,9 @@ export async function articles_create(
     formData.append("date", articleData.date || new Date().toISOString().substring(0, 10));
     formData.append("technical_difficulty", (articleData.technical_difficulty ?? 0).toString());
     formData.append("tags", JSON.stringify(articleData.tags || []));
+    if (articleData.featured !== undefined) {
+        formData.append("featured", articleData.featured ? "true" : "false");
+    }
 
     if (user?.actor) {
         formData.append("author", user.actor);
@@ -118,6 +121,7 @@ export async function articles_update(
     if (articleData.date !== undefined) formData.append("date", articleData.date);
     if (articleData.technical_difficulty !== undefined) formData.append("technical_difficulty", articleData.technical_difficulty.toString());
     if (articleData.tags !== undefined) formData.append("tags", JSON.stringify(articleData.tags));
+    if (articleData.featured !== undefined) formData.append("featured", articleData.featured ? "true" : "false");
 
     if (articleData.relation !== undefined) {
         for (const trailId of articleData.relation) {

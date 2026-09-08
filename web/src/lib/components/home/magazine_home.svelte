@@ -17,16 +17,19 @@
     let { data }: Props = $props();
 
     let articles = $derived(data.articles || []);
-    let featuredArticle = $derived(articles.length > 0 ? articles[0] : null);
-    let restArticles = $derived(articles.length > 1 ? articles.slice(1) : []);
+    let featuredArticle = $derived.by(() => {
+        if (articles.length === 0) return null;
+        const explicitFeatured = articles.find((a) => a.featured);
+        return explicitFeatured || articles[0];
+    });
     let recentTrails = $derived(data.recentTrails || []);
 
     let selectedTagFilter: string | null = $state(null);
 
     let filteredArticles = $derived(
         selectedTagFilter
-            ? restArticles.filter((a) => (a.tags || []).includes(selectedTagFilter!))
-            : restArticles
+            ? articles.filter((a) => (a.tags || []).includes(selectedTagFilter!))
+            : articles
     );
 
     // Collect all available tags across articles for quick filtering

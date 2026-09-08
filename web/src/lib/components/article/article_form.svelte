@@ -6,6 +6,7 @@
     import type { Trail } from "$lib/models/trail";
     import { trails_show } from "$lib/stores/trail_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { currentUser } from "$lib/stores/user_store";
     import { getFileURL } from "$lib/util/file_util";
     import {
         EDITORIAL_TAG_CATEGORIES,
@@ -42,6 +43,7 @@
         initialArticle?.date || new Date().toISOString().substring(0, 10)
     );
     let technicalDifficulty: number = $state(initialArticle?.technical_difficulty ?? 0);
+    let featured: boolean = $state(initialArticle?.featured ?? false);
     let selectedTags: string[] = $state(
         initialArticle?.tags ? [...initialArticle.tags] : []
     );
@@ -303,6 +305,7 @@
                     relation: selectedTrailIds,
                     tags: selectedTags,
                     technical_difficulty: technicalDifficulty,
+                    featured: featured,
                 },
                 heroFiles,
                 deletedHeroImages
@@ -767,6 +770,28 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Admin Editorial Curating Card -->
+            {#if $currentUser?.is_admin}
+                <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4.5 space-y-2.5 shadow-xs">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            bind:checked={featured}
+                            class="mt-0.5 rounded border-input-border text-primary focus:ring-primary h-4 w-4"
+                        />
+                        <div class="space-y-0.5">
+                            <span class="text-xs font-bold text-content flex items-center gap-1.5">
+                                <i class="fa-solid fa-star text-amber-500"></i>
+                                Mettre en avant à la Une
+                            </span>
+                            <p class="text-[11px] text-content/70 leading-relaxed">
+                                Affiche ce récit dans la grande bannière tout en haut de la page d'accueil du magazine.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+            {/if}
 
             <!-- Publishing Actions Card -->
             <div class="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-3 shadow-xs">

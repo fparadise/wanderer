@@ -24,14 +24,17 @@
         deduplicateGroupPhotos,
     } from "$lib/models/article_media";
     import { TRAIL_COLORS } from "$lib/config/map";
+    import { articles_update } from "$lib/stores/article_store";
     import type { PageData } from "./$types";
     import * as M from "maplibre-gl";
     import { onDestroy } from "svelte";
 
     let { data }: { data: PageData } = $props();
+
     let article = $derived(data.article);
     let linkedTrails = $derived(article.expand?.relation || []);
     let author = $derived(article.expand?.author);
+    let authorName = $derived(author?.preferred_username || author?.username || "Auteur");
     let participants = $derived(article.expand?.participants || []);
     let tags = $derived(article.tags || []);
     let techDiff = $derived(
@@ -44,6 +47,35 @@
          author?.user === $currentUser.id ||
          $currentUser.is_admin === true)
     );
+
+    let isTogglingFeatured = $state(false);
+    let isFeatured = $derived(article.featured ?? false);
+
+    async function toggleFeatured() {
+        if (!article.id || isTogglingFeatured) return;
+        isTogglingFeatured = true;
+        try {
+            const nextFeatured = !isFeatured;
+            await articles_update(article.id, { featured: nextFeatured });
+            article.featured = nextFeatured;
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: nextFeatured
+                    ? "Récit mis à la une sur l'accueil !"
+                    : "Récit retiré de la une.",
+            });
+        } catch (e: any) {
+            console.error(e);
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: "Erreur lors de la mise à jour de la mise en avant.",
+            });
+        } finally {
+            isTogglingFeatured = false;
+        }
+    }
 
     let mainHeroImage = $derived(
         article.hero_images && article.hero_images.length > 0
@@ -1000,14 +1032,28 @@
 
                 <!-- Author & Admin Actions -->
                 {#if canEdit}
-                    <a
-                        href="/articles/edit/{article.id}"
-                        class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 rounded-xl ml-2 shadow-2xs"
-                        title="Modifier l'article"
-                    >
-                        <i class="fa-solid fa-pen-to-square text-primary text-xs"></i>
-                        <span>Modifier</span>
-                    </a>
+                    <div class="flex items-center gap-1.5 ml-2">
+                        {#if $currentUser?.is_admin}
+                            <button
+                                type="button"
+                                onclick={toggleFeatured}
+                                disabled={isTogglingFeatured}
+                                class="text-xs py-1.5 px-3 flex items-center gap-1.5 rounded-xl shadow-2xs font-semibold transition-all {isFeatured ? 'bg-amber-500 text-white shadow-amber-500/20 hover:bg-amber-600' : 'btn-secondary'}"
+                                title={isFeatured ? "Retirer de la une d'accueil" : "Mettre à la une sur l'accueil"}
+                            >
+                                <i class="fa-solid fa-star {isFeatured ? 'text-white' : 'text-amber-500'} text-xs"></i>
+                                <span>{isFeatured ? "À la une" : "Mettre à la une"}</span>
+                            </button>
+                        {/if}
+                        <a
+                            href="/articles/edit/{article.id}"
+                            class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 rounded-xl shadow-2xs"
+                            title="Modifier l'article"
+                        >
+                            <i class="fa-solid fa-pen-to-square text-primary text-xs"></i>
+                            <span>Modifier</span>
+                        </a>
+                    </div>
                 {/if}
             </div>
         </div>
