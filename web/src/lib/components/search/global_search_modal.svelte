@@ -206,14 +206,14 @@
         >
             <!-- Search Header -->
             <div class="relative flex items-center border-b border-input-border px-4 py-3">
-                <i class="fa fa-search text-muted-foreground mr-3 text-lg"></i>
+                <i class="fa fa-search text-content/50 mr-3 text-lg"></i>
                 <input
                     bind:this={inputElement}
                     bind:value={query}
                     oninput={onInputChange}
                     type="text"
                     placeholder="Rechercher des traces, récits, listes, lieux..."
-                    class="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground text-base focus:ring-0"
+                    class="w-full bg-transparent border-none outline-none text-content placeholder:text-content/40 text-base focus:ring-0"
                 />
                 {#if query.length > 0}
                     <button
@@ -224,13 +224,13 @@
                             results = [];
                             inputElement?.focus();
                         }}
-                        class="text-muted-foreground hover:text-foreground text-sm p-1 mr-2"
+                        class="text-content/60 hover:text-content text-sm p-1 mr-2"
                     >
                         <i class="fa fa-xmark"></i>
                     </button>
                 {/if}
                 <kbd
-                    class="hidden sm:inline-block px-2 py-0.5 text-xs text-muted-foreground bg-input-border/40 rounded border border-input-border"
+                    class="hidden sm:inline-block px-2 py-0.5 text-xs text-content/60 bg-input-border/40 rounded border border-input-border"
                 >
                     ESC
                 </kbd>
@@ -239,12 +239,12 @@
             <!-- Search Results or Status -->
             <div class="overflow-y-auto flex-1 divide-y divide-input-border/50">
                 {#if isSearching && results.length === 0}
-                    <div class="p-8 text-center text-muted-foreground flex items-center justify-center gap-3">
+                    <div class="p-8 text-center text-content/60 flex items-center justify-center gap-3">
                         <i class="fa fa-circle-notch fa-spin text-primary"></i>
                         <span>Recherche en cours...</span>
                     </div>
                 {:else if query.trim().length > 0 && results.length === 0 && !isSearching}
-                    <div class="p-8 text-center text-muted-foreground">
+                    <div class="p-8 text-center text-content/60">
                         <i class="fa fa-magnifying-glass text-2xl mb-2 opacity-50 block"></i>
                         <span>Aucun résultat pour « {query} »</span>
                     </div>
@@ -256,7 +256,7 @@
                                     type="button"
                                     onclick={() => selectItem(item)}
                                     onmouseenter={() => (selectedIndex = idx)}
-                                    class="w-full text-left flex items-center gap-3.5 px-4 py-3 cursor-pointer transition-colors {idx === selectedIndex ? 'bg-menu-item-background-focus text-foreground' : 'hover:bg-menu-item-background-hover'}"
+                                    class="w-full text-left flex items-center gap-3.5 px-4 py-3 cursor-pointer transition-colors {idx === selectedIndex ? 'bg-menu-item-background-focus text-content' : 'hover:bg-menu-item-background-hover'}"
                                 >
                                     <div
                                         class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {item.category === 'article' ? 'bg-amber-500/10 text-amber-500' : item.category === 'trail' ? 'bg-primary/10 text-primary' : item.category === 'list' ? 'bg-blue-500/10 text-blue-500' : 'bg-neutral-500/10 text-neutral-400'}"
@@ -266,32 +266,32 @@
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center gap-2">
                                             <span class="font-medium text-sm truncate">{item.title}</span>
-                                            <span class="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground px-1.5 py-0.5 rounded bg-input-border/30">
+                                            <span class="text-[10px] uppercase font-semibold tracking-wider text-content/70 px-1.5 py-0.5 rounded bg-input-border/30">
                                                 {item.categoryLabel}
                                             </span>
                                         </div>
                                         {#if item.description}
-                                            <p class="text-xs text-muted-foreground truncate mt-0.5">
+                                            <p class="text-xs text-content/70 truncate mt-0.5">
                                                 {item.description}
                                             </p>
                                         {/if}
                                     </div>
                                     {#if idx === selectedIndex}
-                                        <i class="fa fa-arrow-right text-muted-foreground text-xs shrink-0"></i>
+                                        <i class="fa fa-arrow-right text-content/60 text-xs shrink-0"></i>
                                     {/if}
                                 </button>
                             </li>
                         {/each}
                     </ul>
                 {:else}
-                    <div class="p-6 text-center text-xs text-muted-foreground">
+                    <div class="p-6 text-center text-xs text-content/60">
                         Saisissez un mot-clé pour rechercher des traces GPS, des récits de voyage, des listes ou des lieux.
                     </div>
                 {/if}
             </div>
 
             <!-- Modal Footer -->
-            <div class="hidden sm:flex items-center justify-between px-4 py-2 bg-input-border/20 border-t border-input-border text-[11px] text-muted-foreground">
+            <div class="hidden sm:flex items-center justify-between px-4 py-2 bg-input-border/20 border-t border-input-border text-[11px] text-content/70">
                 <div class="flex items-center gap-3">
                     <span><kbd class="px-1.5 py-0.5 rounded bg-input-border/50 border border-input-border">↑</kbd> <kbd class="px-1.5 py-0.5 rounded bg-input-border/50 border border-input-border">↓</kbd> Naviguer</span>
                     <span><kbd class="px-1.5 py-0.5 rounded bg-input-border/50 border border-input-border">↵</kbd> Ouvrir</span>

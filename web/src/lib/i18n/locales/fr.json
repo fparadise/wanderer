@@ -672,5 +672,9 @@
   "width": "Largeur",
   "wrong-username-or-password": "Nom d'utilisateur ou mot de passe incorrect",
   "yes": "Yes",
-  "you-can": "Vous pouvez"
+  "you-can": "Vous pouvez",
+  "footer-desc": "Une plateforme d'itinéraires et d'aventures outdoor basée sur le projet open-source Wanderer.",
+  "footer-based-on": "Propulsé par",
+  "support-wanderer": "Soutenir Wanderer",
+  "donate": "Faire un don"
 }

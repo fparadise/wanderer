@@ -672,5 +672,9 @@
   "width": "Width",
   "wrong-username-or-password": "Wrong username or password",
   "yes": "Yes",
-  "you-can": "You can"
+  "you-can": "You can",
+  "footer-desc": "An outdoor exploration platform built upon the open-source project Wanderer.",
+  "footer-based-on": "Built with",
+  "support-wanderer": "Support Wanderer",
+  "donate": "Donate"
 }

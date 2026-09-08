@@ -348,14 +348,14 @@
     <!-- Top Header Bar -->
     <div class="flex items-center justify-between pb-6 border-b">
         <div class="flex items-center gap-4">
-            <a href={cancelHref} class="btn-icon text-muted-foreground hover:text-foreground" title="Retour">
+            <a href={cancelHref} class="btn-icon text-content/60 hover:text-content" title="Retour">
                 <i class="fa-solid fa-arrow-left"></i>
             </a>
             <div>
                 <span class="text-xs uppercase font-bold tracking-widest text-primary">
                     {mode === "edit" ? "Édition du carnet" : "Studio Magazine"}
                 </span>
-                <h1 class="text-3xl font-serif font-bold text-foreground">
+                <h1 class="text-3xl font-serif font-bold text-content">
                     {mode === "edit" ? "Modifier le récit" : "Rédiger un nouveau récit"}
                 </h1>
             </div>
@@ -385,7 +385,7 @@
         <div class="lg:col-span-2 space-y-8">
             <!-- Title -->
             <div class="space-y-2">
-                <label for="article-title" class="block text-xs uppercase font-bold tracking-wider text-muted-foreground">
+                <label for="article-title" class="block text-xs uppercase font-bold tracking-wider text-content/70">
                     Titre du récit *
                 </label>
                 <input
@@ -393,13 +393,13 @@
                     type="text"
                     bind:value={title}
                     placeholder="Ex: 4 jours en autonomie dans les grands espaces..."
-                    class="w-full text-2xl font-serif font-semibold px-4 py-3 rounded-xl border bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-hidden transition-all"
+                    class="w-full text-2xl font-serif font-semibold px-4 py-3 rounded-xl border border-input-border bg-background text-content focus:ring-2 focus:ring-primary focus:outline-hidden transition-all"
                 />
             </div>
 
             <!-- Chapô / Intro -->
             <div class="space-y-2">
-                <label for="article-intro" class="block text-xs uppercase font-bold tracking-wider text-muted-foreground">
+                <label for="article-intro" class="block text-xs uppercase font-bold tracking-wider text-content/70">
                     Chapô d'introduction (résumé d'accroche)
                 </label>
                 <textarea
@@ -407,22 +407,22 @@
                     bind:value={intro}
                     rows="3"
                     placeholder="Une courte introduction évocatrice pour plonger le lecteur dans l'ambiance de l'aventure..."
-                    class="w-full text-base px-4 py-3 rounded-xl border bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-hidden transition-all italic"
+                    class="w-full text-base px-4 py-3 rounded-xl border border-input-border bg-background text-content focus:ring-2 focus:ring-primary focus:outline-hidden transition-all italic"
                 ></textarea>
             </div>
 
             <!-- Hero Images Upload Area -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <label class="block text-xs uppercase font-bold tracking-wider text-muted-foreground">
+                    <label class="block text-xs uppercase font-bold tracking-wider text-content/70">
                         Photos de couverture & galerie hero
                     </label>
-                    <span class="text-xs text-muted-foreground">
+                    <span class="text-xs text-content/60">
                         {rawHeroImages.length + heroPreviews.length} photo(s)
                     </span>
                 </div>
 
-                <div class="border-2 border-dashed border-border/80 rounded-2xl p-6 text-center hover:border-primary/60 transition-colors bg-card/30">
+                <div class="border-2 border-dashed border-input-border rounded-2xl p-6 text-center hover:border-primary/60 transition-colors bg-input-background/40">
                     <!-- Existing + New Previews -->
                     {#if rawHeroImages.length > 0 || heroPreviews.length > 0}
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
@@ -484,7 +484,7 @@
                             class="hidden"
                         />
                     </label>
-                    <p class="text-xs text-muted-foreground mt-2">
+                    <p class="text-xs text-content/60 mt-2">
                         La première photo servira de couverture principale en haut de l'article.
                     </p>
                 </div>
@@ -492,14 +492,14 @@
 
             <!-- Activity Photos Tray (Media Items from linked trails) -->
             {#if activityPhotos.length > 0}
-                <div class="space-y-3 p-5 rounded-2xl border bg-card/60 shadow-xs">
+                <div class="space-y-3 p-5 rounded-2xl border border-input-border bg-input-background/40 shadow-xs">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="font-serif font-bold text-base text-foreground flex items-center gap-2">
+                            <h3 class="font-serif font-bold text-base text-content flex items-center gap-2">
                                 <i class="fa-solid fa-images text-primary"></i>
                                 Médiathèque des traces associées ({activityPhotos.length})
                             </h3>
-                            <p class="text-xs text-muted-foreground mt-0.5">
+                            <p class="text-xs text-content/70 mt-0.5">
                                 Glissez-déposez pour réorganiser l'ordre, insérez dans le texte ou définissez comme couverture.
                             </p>
                         </div>
@@ -513,7 +513,7 @@
                                 ondragstart={() => handleDragStart(idx)}
                                 ondragover={(e) => handleDragOver(e, idx)}
                                 ondragend={handleDragEnd}
-                                class="group relative aspect-square rounded-xl overflow-hidden border bg-neutral-900 shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none {draggedPhotoIdx === idx ? 'opacity-40 ring-2 ring-primary scale-95' : ''}"
+                                class="group relative aspect-square rounded-xl overflow-hidden border border-input-border bg-neutral-900 shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none {draggedPhotoIdx === idx ? 'opacity-40 ring-2 ring-primary scale-95' : ''}"
                             >
                                 <img
                                     src={photo.url}
@@ -566,12 +566,12 @@
             <!-- Body / Rich Text Editor -->
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
-                    <label class="block text-xs uppercase font-bold tracking-wider text-muted-foreground">
+                    <label class="block text-xs uppercase font-bold tracking-wider text-content/70">
                         Corps du récit
                     </label>
                 </div>
 
-                <div class="border rounded-2xl bg-card overflow-hidden focus-within:ring-2 focus-within:ring-primary">
+                <div class="border border-input-border rounded-2xl bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary">
                     <Editor
                         bind:this={editorComponent}
                         bind:value={body}
@@ -584,14 +584,14 @@
             </div>
 
             <!-- Editorial Tags Selector -->
-            <div class="space-y-4 p-5 rounded-2xl border bg-card/60 shadow-xs">
+            <div class="space-y-4 p-5 rounded-2xl border border-input-border bg-input-background/40 shadow-xs">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="font-serif font-bold text-base text-foreground flex items-center gap-2">
+                        <h3 class="font-serif font-bold text-base text-content flex items-center gap-2">
                             <i class="fa-solid fa-tags text-primary"></i>
                             Étiquettes & Ambiance éditoriale
                         </h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">
+                        <p class="text-xs text-content/70 mt-0.5">
                             Sélectionnez les tags qui caractérisent votre aventure pour guider les lecteurs.
                         </p>
                     </div>
@@ -599,7 +599,7 @@
 
                 <!-- Active tags badges -->
                 {#if selectedTags.length > 0}
-                    <div class="flex flex-wrap gap-1.5 p-3 bg-card border rounded-xl">
+                    <div class="flex flex-wrap gap-1.5 p-3 bg-background border border-input-border rounded-xl">
                         {#each selectedTags as tag}
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
                                 #{tag}
@@ -620,7 +620,7 @@
                 <div class="space-y-3">
                     {#each EDITORIAL_TAG_CATEGORIES as category}
                         <div class="space-y-1.5">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-content/70">
                                 {category.label}
                             </span>
                             <div class="flex flex-wrap gap-1.5">
@@ -629,7 +629,7 @@
                                     <button
                                         type="button"
                                         onclick={() => toggleTag(tag)}
-                                        class="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-150 {isSelected ? 'bg-primary text-white border-primary shadow-2xs font-semibold' : 'bg-background hover:bg-card hover:border-primary/50 text-foreground'}"
+                                        class="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-150 {isSelected ? 'bg-primary text-white border-primary shadow-2xs font-semibold' : 'bg-background hover:bg-input-background hover:border-primary/50 text-content border-input-border'}"
                                     >
                                         #{tag}
                                     </button>
@@ -640,18 +640,18 @@
                 </div>
 
                 <!-- Custom tag input -->
-                <div class="flex items-center gap-2 pt-2 border-t">
+                <div class="flex items-center gap-2 pt-2 border-t border-input-border">
                     <input
                         type="text"
                         bind:value={customTagInput}
                         onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
                         placeholder="Ajouter un tag personnalisé (ex: coucher-de-soleil)..."
-                        class="flex-1 px-3 py-2 text-xs rounded-xl border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-hidden"
+                        class="flex-1 px-3 py-2 text-xs rounded-xl border border-input-border bg-background text-content focus:ring-1 focus:ring-primary focus:outline-hidden"
                     />
                     <button
                         type="button"
                         onclick={addCustomTag}
-                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-card hover:bg-muted border transition-colors"
+                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-background hover:bg-input-background border border-input-border transition-colors text-content"
                     >
                         Ajouter
                     </button>
@@ -662,7 +662,7 @@
         <!-- Right Sidebar Column (1 col) -->
         <div class="space-y-6">
             <!-- Trail Association Widget -->
-            <div class="bg-card border rounded-2xl p-5 shadow-xs">
+            <div class="bg-background border border-input-border rounded-2xl p-5 shadow-xs">
                 <TrailPicker
                     bind:selectedIds={selectedTrailIds}
                     onchange={handleTrailsChange}
@@ -670,13 +670,13 @@
             </div>
 
             <!-- Voyage Metrics -->
-            <div class="bg-card border rounded-2xl p-5 shadow-xs space-y-4">
-                <h3 class="text-xs uppercase font-bold tracking-wider text-muted-foreground">
+            <div class="bg-background border border-input-border rounded-2xl p-5 shadow-xs space-y-4">
+                <h3 class="text-xs uppercase font-bold tracking-wider text-content/70">
                     Données globales du voyage
                 </h3>
 
                 <div>
-                    <label for="metric-distance" class="block text-xs text-muted-foreground mb-1">
+                    <label for="metric-distance" class="block text-xs text-content/70 mb-1">
                         Distance totale (km)
                     </label>
                     <div class="relative">
@@ -687,12 +687,12 @@
                             bind:value={totalDistance}
                             class="w-full px-3 py-2 rounded-xl border bg-background text-sm font-semibold"
                         />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">km</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content/70">km</span>
                     </div>
                 </div>
 
                 <div>
-                    <label for="metric-elevation" class="block text-xs text-muted-foreground mb-1">
+                    <label for="metric-elevation" class="block text-xs text-content/70 mb-1">
                         Dénivelé positif (m D+)
                     </label>
                     <div class="relative">
@@ -701,14 +701,14 @@
                             type="number"
                             step="10"
                             bind:value={totalElevationGain}
-                            class="w-full px-3 py-2 rounded-xl border bg-background text-sm font-semibold"
+                            class="w-full px-3 py-2 rounded-xl border border-input-border bg-background text-sm font-semibold"
                         />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content/70">m</span>
                     </div>
                 </div>
 
                 <div>
-                    <label for="metric-days" class="block text-xs text-muted-foreground mb-1">
+                    <label for="metric-days" class="block text-xs text-content/70 mb-1">
                         Durée (nombre de jours)
                     </label>
                     <div class="relative">
@@ -717,28 +717,28 @@
                             type="number"
                             min="1"
                             bind:value={totalDays}
-                            class="w-full px-3 py-2 rounded-xl border bg-background text-sm font-semibold"
+                            class="w-full px-3 py-2 rounded-xl border border-input-border bg-background text-sm font-semibold"
                         />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">jours</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content/70">jours</span>
                     </div>
                 </div>
 
                 <div>
-                    <label for="metric-date" class="block text-xs text-muted-foreground mb-1">
+                    <label for="metric-date" class="block text-xs text-content/70 mb-1">
                         Date de l'expédition
                     </label>
                     <input
                         id="metric-date"
                         type="date"
                         bind:value={date}
-                        class="w-full px-3 py-2 rounded-xl border bg-background text-sm"
+                        class="w-full px-3 py-2 rounded-xl border border-input-border bg-background text-sm"
                     />
                 </div>
 
                 <!-- Technical Difficulty Selector -->
-                <div class="pt-2 border-t space-y-2">
+                <div class="pt-2 border-t border-input-border space-y-2">
                     <div class="flex items-center justify-between">
-                        <label class="block text-xs text-muted-foreground">Niveau technique</label>
+                        <label class="block text-xs text-content/70">Niveau technique</label>
                         <span class="text-xs font-bold text-primary">
                             {technicalDifficulty > 0
                                 ? TECHNICAL_DIFFICULTY_LEVELS[technicalDifficulty]?.title || `Niveau ${technicalDifficulty}`
@@ -750,7 +750,7 @@
                             type="button"
                             onclick={() => (technicalDifficulty = 0)}
                             title="Non spécifié"
-                            class="py-1.5 rounded-lg border text-xs font-bold transition-all {technicalDifficulty === 0 ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background hover:bg-card border-border/80 text-muted-foreground'}"
+                            class="py-1.5 rounded-lg border text-xs font-bold transition-all {technicalDifficulty === 0 ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background hover:bg-input-background border-input-border text-content/70'}"
                         >
                             —
                         </button>
@@ -759,7 +759,7 @@
                                 type="button"
                                 onclick={() => (technicalDifficulty = diff.level)}
                                 title={`${diff.title} : ${diff.subtitle}`}
-                                class="py-1.5 rounded-lg border text-xs font-bold transition-all {technicalDifficulty === diff.level ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background hover:bg-card border-border/80 text-muted-foreground'}"
+                                class="py-1.5 rounded-lg border text-xs font-bold transition-all {technicalDifficulty === diff.level ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background hover:bg-input-background border-input-border text-content/70'}"
                             >
                                 {diff.level}
                             </button>
@@ -775,10 +775,10 @@
                         <i class="fa-solid {mode === 'edit' ? 'fa-pen-to-square' : 'fa-feather'}"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-foreground">
+                        <p class="text-xs font-bold text-content">
                             {mode === "edit" ? "Mise à jour du récit" : "Publication ouverte"}
                         </p>
-                        <p class="text-[11px] text-muted-foreground">
+                        <p class="text-[11px] text-content/70">
                             {mode === "edit" ? "Les modifications seront visibles immédiatement." : "Votre récit sera visible dans la galerie Magazine."}
                         </p>
                     </div>
@@ -800,7 +800,7 @@
                 </button>
 
                 {#if mode === "edit" && ondelete}
-                    <div class="pt-2 border-t border-border/40">
+                    <div class="pt-2 border-t border-input-border/40">
                         <button
                             type="button"
                             onclick={() => (showDeleteConfirm = true)}
@@ -819,14 +819,14 @@
 <!-- Delete Confirmation Modal -->
 {#if showDeleteConfirm}
     <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-card border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+        <div class="bg-background border border-input-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div class="flex items-center gap-3 text-red-500">
                 <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                     <i class="fa-solid fa-triangle-exclamation text-lg"></i>
                 </div>
-                <h3 class="text-lg font-bold text-foreground">Supprimer le récit ?</h3>
+                <h3 class="text-lg font-bold text-content">Supprimer le récit ?</h3>
             </div>
-            <p class="text-sm text-muted-foreground">
+            <p class="text-sm text-content/70">
                 Êtes-vous sûr de vouloir supprimer définitivement ce récit ? Cette action est irréversible et retirera l'article de la galerie.
             </p>
             <div class="flex items-center justify-end gap-3 pt-2">

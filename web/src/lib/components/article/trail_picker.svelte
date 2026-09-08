@@ -69,19 +69,21 @@
 
 <div class="space-y-4">
     <div class="flex items-center justify-between">
-        <label class="block text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <label class="block text-sm font-semibold uppercase tracking-wider text-content/70">
             Itinéraires associés ({selectedIds.length})
         </label>
         {#if selectedTrails.length > 0}
+            {@const totalDist = selectedTrails.reduce((sum, t) => sum + (t.distance || 0), 0)}
+            {@const totalElev = selectedTrails.reduce((sum, t) => sum + (t.elevation_gain || 0), 0)}
             <span class="text-xs text-primary font-medium bg-primary/10 px-2.5 py-1 rounded-full">
-                Total calculé : {Math.round(selectedTrails.reduce((sum, t) => sum + (t.distance || 0), 0) / 1000)} km · +{Math.round(selectedTrails.reduce((sum, t) => sum + (t.elevation_gain || 0), 0))} m
+                Total calculé : {formatDistance(totalDist)} · {formatElevation(totalElev)}
             </span>
         {/if}
     </div>
 
     <!-- Selected Trails Badges -->
     {#if selectedTrails.length > 0}
-        <div class="flex flex-wrap gap-2 p-3 bg-card border rounded-xl">
+        <div class="flex flex-wrap gap-2 p-3 bg-input-background/50 border border-input-border rounded-xl">
             {#each selectedTrails as trail, idx (trail.id)}
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/15 text-primary rounded-lg text-sm font-medium border border-primary/20 shadow-xs">
                     <span class="w-5 h-5 flex items-center justify-center bg-primary text-white text-xs rounded-full font-bold">
@@ -89,12 +91,12 @@
                     </span>
                     <span class="max-w-[200px] truncate">{trail.name}</span>
                     <span class="text-xs opacity-75 font-normal">
-                        ({Math.round((trail.distance || 0) / 1000)} km · +{Math.round(trail.elevation_gain || 0)} m)
+                        ({formatDistance(trail.distance)} · {formatElevation(trail.elevation_gain)})
                     </span>
                     <button
                         type="button"
                         onclick={() => removeTrail(trail.id!)}
-                        class="hover:text-red-500 transition-colors ml-1"
+                        class="hover:text-red-500 transition-colors ml-1 cursor-pointer"
                         aria-label="Retirer l'itinéraire"
                     >
                         <i class="fa-solid fa-xmark text-xs"></i>
@@ -106,22 +108,22 @@
 
     <!-- Search input -->
     <div class="relative">
-        <i class="fa-solid fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm"></i>
+        <i class="fa-solid fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-content/50 text-sm"></i>
         <input
             type="text"
             bind:value={searchQuery}
             placeholder="Rechercher une trace à associer (ex: désert, étape...)"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-hidden focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input-border bg-background text-content placeholder:text-content/40 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
         />
     </div>
 
     <!-- Available trails list -->
     {#if loading}
-        <div class="py-4 text-center text-sm text-muted-foreground">
+        <div class="py-4 text-center text-sm text-content/60">
             <i class="fa-solid fa-spinner fa-spin mr-2"></i> Chargement de vos traces...
         </div>
     {:else if filteredTrails.length === 0}
-        <div class="py-4 text-center text-sm text-muted-foreground bg-card/50 border border-dashed rounded-xl">
+        <div class="py-4 text-center text-sm text-content/60 bg-input-background/40 border border-input-border border-dashed rounded-xl">
             Aucun itinéraire trouvé.
         </div>
     {:else}
@@ -131,24 +133,24 @@
                 <button
                     type="button"
                     onclick={() => toggleTrail(trail)}
-                    class="w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-150 {isSelected ? 'border-primary bg-primary/5 shadow-xs' : 'border-border/60 hover:border-primary/50 hover:bg-card/75'}"
+                    class="w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-150 {isSelected ? 'border-primary bg-primary/5 shadow-xs' : 'border-input-border/70 hover:border-primary/50 hover:bg-input-background/60'}"
                 >
                     <div class="min-w-0 flex items-center gap-3">
-                        <div class="w-5 h-5 rounded border flex items-center justify-center {isSelected ? 'bg-primary border-primary text-white' : 'border-border'}">
+                        <div class="w-5 h-5 rounded border flex items-center justify-center {isSelected ? 'bg-primary border-primary text-white' : 'border-input-border'}">
                             {#if isSelected}
                                 <i class="fa-solid fa-check text-xs"></i>
                             {/if}
                         </div>
                         <div class="truncate">
-                            <p class="text-sm font-semibold text-foreground truncate">{trail.name}</p>
+                            <p class="text-sm font-semibold text-content truncate">{trail.name}</p>
                             {#if trail.location}
-                                <p class="text-xs text-muted-foreground truncate">{trail.location}</p>
+                                <p class="text-xs text-content/70 truncate">{trail.location}</p>
                             {/if}
                         </div>
                     </div>
                     <div class="text-right shrink-0 ml-4">
-                        <span class="text-xs font-semibold text-foreground">{Math.round((trail.distance || 0) / 1000)} km</span>
-                        <span class="text-xs text-muted-foreground block">+{Math.round(trail.elevation_gain || 0)} m</span>
+                        <span class="text-xs font-semibold text-content">{formatDistance(trail.distance)}</span>
+                        <span class="text-xs text-content/70 block">{formatElevation(trail.elevation_gain)}</span>
                     </div>
                 </button>
             {/each}

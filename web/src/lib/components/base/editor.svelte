@@ -126,7 +126,7 @@
                     ),
                 ],
                 HTMLAttributes.title
-                    ? ["figcaption", { class: "text-xs text-muted-foreground italic mt-1" }, HTMLAttributes.title]
+                    ? ["figcaption", { class: "text-xs text-content/70 italic mt-1" }, HTMLAttributes.title]
                     : "",
             ];
         },
@@ -857,7 +857,7 @@
                     {#if mediaItems && mediaItems.length > 0}
                         <button
                             type="button"
-                            class="pb-2 text-xs font-bold transition-colors border-b-2 {imageSourceTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+                            class="pb-2 text-xs font-bold transition-colors border-b-2 {imageSourceTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-content/60 hover:text-content'}"
                             onclick={() => imageSourceTab = 'library'}
                         >
                             <i class="fa-solid fa-images mr-1"></i>
@@ -866,7 +866,7 @@
                     {/if}
                     <button
                         type="button"
-                        class="pb-2 text-xs font-bold transition-colors border-b-2 {imageSourceTab === 'upload' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+                        class="pb-2 text-xs font-bold transition-colors border-b-2 {imageSourceTab === 'upload' ? 'border-primary text-primary' : 'border-transparent text-content/60 hover:text-content'}"
                         onclick={() => imageSourceTab = 'upload'}
                     >
                         <i class="fa-solid fa-cloud-arrow-up mr-1"></i>
@@ -878,10 +878,10 @@
             <!-- Tab: Library of Media Items -->
             {#if !isEditingImage && imageSourceTab === 'library' && mediaItems && mediaItems.length > 0}
                 <div class="space-y-2">
-                    <span class="text-xs text-muted-foreground font-medium">
+                    <span class="text-xs text-content/70 font-medium">
                         Sélectionnez une photo issue de vos traces GPS :
                     </span>
-                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1 border rounded-xl bg-card/50">
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1 border border-input-border rounded-xl bg-input-background/30">
                         {#each mediaItems as item}
                             <button
                                 type="button"
@@ -903,7 +903,7 @@
                 <div class="space-y-3">
                     {#if !isEditingImage}
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                                 Téléverser un fichier local
                             </label>
                             <input
@@ -916,7 +916,7 @@
                     {/if}
 
                     <div>
-                        <label for="img-url-input" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        <label for="img-url-input" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                             URL de l'image
                         </label>
                         <input
@@ -932,17 +932,17 @@
 
             <!-- Image Preview if selected -->
             {#if imageSrc}
-                <div class="flex items-center gap-3 p-2 rounded-xl bg-card border">
-                    <img src={imageSrc} alt="Aperçu" class="w-16 h-16 object-cover rounded-lg border shrink-0" />
+                <div class="flex items-center gap-3 p-2 rounded-xl bg-input-background/40 border border-input-border">
+                    <img src={imageSrc} alt="Aperçu" class="w-16 h-16 object-cover rounded-lg border border-input-border shrink-0" />
                     <div class="min-w-0 flex-1">
-                        <p class="text-xs font-semibold text-foreground truncate">{imageSrc}</p>
-                        <p class="text-[11px] text-muted-foreground">Image sélectionnée</p>
+                        <p class="text-xs font-semibold text-content truncate">{imageSrc}</p>
+                        <p class="text-[11px] text-content/70">Image sélectionnée</p>
                     </div>
                     {#if !isEditingImage}
                         <button
                             type="button"
                             onclick={() => { imageSrc = ""; }}
-                            class="btn-icon text-muted-foreground hover:text-red-500"
+                            class="btn-icon text-content/60 hover:text-red-500"
                             title="Désélectionner"
                         >
                             <i class="fa-solid fa-xmark"></i>
@@ -952,57 +952,57 @@
             {/if}
 
             <!-- Layout Options -->
-            <div class="space-y-1.5 pt-2 border-t">
-                <span class="block text-xs font-bold uppercase tracking-wider text-foreground">
+            <div class="space-y-1.5 pt-2 border-t border-input-border">
+                <span class="block text-xs font-bold uppercase tracking-wider text-content">
                     Disposition / Mise en page
                 </span>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
                         type="button"
                         onclick={() => imageLayout = 'full'}
-                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'full' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-card text-muted-foreground hover:text-foreground'}"
+                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'full' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-background border-input-border text-content/70 hover:text-content hover:bg-input-background/40'}"
                     >
                         <i class="fa-solid fa-arrows-left-right text-base"></i>
                         <span class="text-xs font-semibold">Pleine largeur</span>
-                        <span class="text-[10px] text-muted-foreground leading-tight">Occupe toute la largeur</span>
+                        <span class="text-[10px] text-content/60 leading-tight">Occupe toute la largeur</span>
                     </button>
 
                     <button
                         type="button"
                         onclick={() => imageLayout = 'center'}
-                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'center' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-card text-muted-foreground hover:text-foreground'}"
+                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'center' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-background border-input-border text-content/70 hover:text-content hover:bg-input-background/40'}"
                     >
                         <i class="fa-solid fa-align-center text-base"></i>
                         <span class="text-xs font-semibold">Centrée</span>
-                        <span class="text-[10px] text-muted-foreground leading-tight">Largeur normale</span>
+                        <span class="text-[10px] text-content/60 leading-tight">Largeur normale</span>
                     </button>
 
                     <button
                         type="button"
                         onclick={() => imageLayout = 'left'}
-                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'left' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-card text-muted-foreground hover:text-foreground'}"
+                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'left' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-background border-input-border text-content/70 hover:text-content hover:bg-input-background/40'}"
                     >
                         <i class="fa-solid fa-align-left text-base"></i>
                         <span class="text-xs font-semibold">Flottant gauche</span>
-                        <span class="text-[10px] text-muted-foreground leading-tight">Texte à droite</span>
+                        <span class="text-[10px] text-content/60 leading-tight">Texte à droite</span>
                     </button>
 
                     <button
                         type="button"
                         onclick={() => imageLayout = 'right'}
-                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'right' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-card text-muted-foreground hover:text-foreground'}"
+                        class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 {imageLayout === 'right' ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary' : 'bg-background border-input-border text-content/70 hover:text-content hover:bg-input-background/40'}"
                     >
                         <i class="fa-solid fa-align-right text-base"></i>
                         <span class="text-xs font-semibold">Flottant droite</span>
-                        <span class="text-[10px] text-muted-foreground leading-tight">Texte à gauche</span>
+                        <span class="text-[10px] text-content/60 leading-tight">Texte à gauche</span>
                     </button>
                 </div>
             </div>
 
             <!-- Caption & Alt text -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-input-border">
                 <div>
-                    <label for="img-caption" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    <label for="img-caption" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                         Légende sous la photo
                     </label>
                     <input
@@ -1014,7 +1014,7 @@
                     />
                 </div>
                 <div>
-                    <label for="img-alt" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    <label for="img-alt" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                         Texte alternatif (accessibilité)
                     </label>
                     <input
@@ -1073,14 +1073,14 @@
 >
     {#snippet content()}
         <div class="space-y-4">
-            <p class="text-xs text-muted-foreground leading-relaxed">
+            <p class="text-xs text-content/70 leading-relaxed">
                 Ce repère sera cliquable dans votre récit. En cliquant dessus, le lecteur sera automatiquement recentré sur la trace au niveau exact du kilomètre indiqué.
             </p>
 
             <div class="space-y-3">
                 {#if trails && trails.length > 1}
                     <div>
-                        <label for="pk-stage-select" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        <label for="pk-stage-select" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                             Étape associée
                         </label>
                         <select
@@ -1098,7 +1098,7 @@
                 {/if}
 
                 <div>
-                    <label for="pk-km-input" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    <label for="pk-km-input" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                         Point kilométrique (km) *
                     </label>
                     <input
@@ -1113,7 +1113,7 @@
                 </div>
 
                 <div>
-                    <label for="pk-label-input" class="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    <label for="pk-label-input" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
                         Libellé du lieu (optionnel)
                     </label>
                     <input
@@ -1123,14 +1123,14 @@
                         placeholder="Ex: Col de la Bonette (2715m), Bivouac des lacs..."
                         class="input w-full text-xs"
                     />
-                    <p class="text-[11px] text-muted-foreground mt-1">
+                    <p class="text-[11px] text-content/60 mt-1">
                         Le kilomètre "KM {pkModalKm || 0}" sera automatiquement préfixé au libellé.
                     </p>
                 </div>
 
                 <!-- Live Badge Preview -->
-                <div class="p-3 rounded-xl bg-card border flex items-center justify-between mt-2">
-                    <span class="text-xs text-muted-foreground font-semibold">Aperçu dans le texte :</span>
+                <div class="p-3 rounded-xl bg-input-background/40 border border-input-border flex items-center justify-between mt-2">
+                    <span class="text-xs text-content/70 font-semibold">Aperçu dans le texte :</span>
                     <span
                         class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-2xs select-none"
                         style="background-color: {pkModalColor}20; color: {pkModalColor}; border-color: {pkModalColor}45;"
