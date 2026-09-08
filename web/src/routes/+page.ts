@@ -11,14 +11,18 @@ export const load: Load = async ({ fetch }) => {
             categories_index(fetch).catch(() => []),
             subcategories_index(fetch).catch(() => []),
             articles_index(1, 12, fetch).catch(() => ({ items: [], totalItems: 0 })),
-            fetch("/api/v1/trail?perPage=6&sort=-date,-created&expand=category,author")
+            fetch("/api/v1/trail?perPage=6&sort=-date,-created&expand=category,subcategory,author,trail_share_via_trail")
                 .then((r) => (r.ok ? r.json() : { items: [] }))
                 .catch(() => ({ items: [] })),
         ]);
 
+        const recentTrails = (recentTrailsRes?.items || []) as Trail[];
+        const totalTrailsCount = (recentTrailsRes?.totalItems ?? recentTrails.length) as number;
+
         return {
             articles: (articlesResult?.items || []) as Article[],
-            recentTrails: (recentTrailsRes?.items || []) as Trail[],
+            recentTrails,
+            totalTrailsCount,
         };
     } catch (e) {
         if (!(e instanceof Error) || e.message !== "Unauthorized") {

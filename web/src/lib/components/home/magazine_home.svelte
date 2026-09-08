@@ -2,10 +2,9 @@
     import type { Article } from "$lib/models/article";
     import type { Trail } from "$lib/models/trail";
     import { currentUser } from "$lib/stores/user_store";
-    import { formatDistance, formatElevation } from "$lib/util/format_util";
-    import { getFileURL } from "$lib/util/file_util";
     import { RADIUS } from "$lib/config/design_system";
     import ArticleCard from "$lib/components/article/article_card.svelte";
+    import TrailCard from "$lib/components/trail/trail_card.svelte";
     import { _ } from "svelte-i18n";
 
     interface Props {
@@ -173,65 +172,19 @@
                         </a>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {#each recentTrails as trail (trail.id)}
-                            {@const author = trail.expand?.author}
-                            {@const authorName = author?.preferred_username || author?.username || "Aventurier"}
-                            {@const authorAvatar = author?.icon ? getFileURL(author, author.icon) : `https://api.dicebear.com/7.x/initials/svg?seed=${authorName}`}
-                            {@const activityDate = trail.date
-                                ? new Date(trail.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : (trail.created ? new Date(trail.created).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '')}
+                            {@const authorHandle = trail.expand?.author?.preferred_username || trail.author}
                             <a
-                                href="/trail/view/@{authorName}/{trail.id}"
-                                class="group block p-4 rounded-2xl border border-input-border bg-background hover:border-primary/60 transition-all shadow-2xs hover:shadow-xs space-y-3"
+                                href="/trail/view/@{authorHandle}{trail.domain ? `@${trail.domain}` : ''}/{trail.id}"
+                                class="block h-full group transition-transform hover:-translate-y-1 duration-200"
                             >
-                                <!-- Author Header: Avatar, Username, GPX Activity Date -->
-                                <div class="flex items-center justify-between gap-2">
-                                    <div class="flex items-center gap-2.5 min-w-0">
-                                        <img
-                                            src={authorAvatar}
-                                            alt={authorName}
-                                            class="w-6 h-6 rounded-full object-cover border border-input-border shrink-0"
-                                        />
-                                        <span class="text-xs font-bold text-content truncate group-hover:text-primary transition-colors">
-                                            @{authorName}
-                                        </span>
-                                    </div>
-                                    <span class="text-[11px] text-content/60 shrink-0 font-medium">
-                                        {activityDate}
-                                    </span>
-                                </div>
-
-                                <!-- Trail Title & Category -->
-                                <div class="space-y-1">
-                                    <h5 class="text-sm font-semibold text-content group-hover:text-primary transition-colors truncate">
-                                        {trail.name}
-                                    </h5>
-                                    <div class="flex items-center gap-2 text-[11px] text-content/60">
-                                        {#if trail.expand?.category?.name}
-                                            <span class="text-primary font-semibold">{trail.expand.category.name}</span>
-                                        {/if}
-                                        {#if trail.location}
-                                            {#if trail.expand?.category?.name}<span>·</span>{/if}
-                                            <span class="truncate flex items-center gap-1">
-                                                <i class="fa-solid fa-location-dot text-[9px] text-content/40"></i>
-                                                {trail.location}
-                                            </span>
-                                        {/if}
-                                    </div>
-                                </div>
-
-                                <!-- Quick Metrics Pill Bar -->
-                                <div class="flex items-center justify-between pt-2 border-t border-input-border/50 text-xs">
-                                    <span class="font-extrabold text-content flex items-center gap-1">
-                                        <i class="fa-solid fa-route text-content/40 text-[10px]"></i>
-                                        {formatDistance(trail.distance, { compact: true })}
-                                    </span>
-                                    <span class="font-semibold text-primary flex items-center gap-1">
-                                        <i class="fa-solid fa-arrow-trend-up text-[10px]"></i>
-                                        +{formatElevation(trail.elevation_gain)}
-                                    </span>
-                                </div>
+                                <TrailCard
+                                    {trail}
+                                    fullWidth={true}
+                                    selected={false}
+                                    hovered={false}
+                                />
                             </a>
                         {/each}
                     </div>
