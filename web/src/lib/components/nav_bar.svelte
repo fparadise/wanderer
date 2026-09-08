@@ -13,6 +13,7 @@
     import Dropdown from "./base/dropdown.svelte";
     import LogoTextLight from "./logo/logo_text_light.svelte";
     import NotificationDropdown from "./notification/notification_dropdown.svelte";
+    import GlobalSearchModal from "./search/global_search_modal.svelte";
     import UrlImportModal from "./settings/url_import_modal.svelte";
 
     interface Props {
@@ -22,27 +23,26 @@
     let { user }: Props = $props();
     const navUser = $derived($currentUser ?? user);
 
-    let navBarItems = [
-        { text: "Home", value: "/" },
+    let navBarItems = $derived([
+        { text: $_("home"), value: "/" },
         { text: "Magazine", value: "/articles" },
         { text: $_("trail", { values: { n: 2 } }), value: "/trails" },
         { text: $_("map"), value: "/map" },
         { text: $_("list", { values: { n: 2 } }), value: "/lists" },
-    ];
+    ]);
 
-    const dropdownItems = [
-        { text: "Rédiger un récit", value: "new-article", icon: "feather" },
+    let createDropdownItems = $derived([
+        { text: $_("new-trail") || "Nouvel itinéraire", value: "new-trail", icon: "route" },
+        { text: $_("new-story") || "Nouveau récit", value: "new-article", icon: "feather" },
+        { text: $_("from-url") || "Depuis une URL", value: "url", icon: "cloud-arrow-down" },
+    ]);
+
+    let dropdownItems = $derived([
         { text: $_("profile"), value: "profile", icon: "user" },
         { text: $_("my-trails"), value: "trails", icon: "route" },
-
         { text: $_("settings"), value: "settings", icon: "cog" },
         { text: $_("logout"), value: "logout", icon: "right-from-bracket" },
-    ];
-
-    const importDropdownItems = [
-        { text: $_("from-file"), value: "file", icon: "file-import" },
-        { text: $_("from-url"), value: "url", icon: "server" },
-    ];
+    ]);
 
     const indicatorPosition = new Tween(0, {
         duration: 300,
@@ -62,6 +62,7 @@
     let drawerOpen: boolean = $state(false);
 
     let urlImportModal: UrlImportModal;
+    let globalSearchModal: GlobalSearchModal;
 
     afterNavigate((e) => {
         const routeId = e.to?.route.id;
@@ -104,10 +105,18 @@
         }
     });
 
-    function handleDropdownClick(item: { text: string; value: any }) {
-        if (item.value == "new-article") {
+    function handleCreateDropdownClick(item: { text: string; value: any }) {
+        if (item.value === "new-trail") {
+            window.location.href = "/trail/edit/new";
+        } else if (item.value === "new-article") {
             goto("/articles/new");
-        } else if (item.value == "profile") {
+        } else if (item.value === "url") {
+            urlImportModal.openModal();
+        }
+    }
+
+    function handleDropdownClick(item: { text: string; value: any }) {
+        if (item.value == "profile") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}`);
         } else if (item.value == "trails") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}/trails`);
@@ -118,24 +127,24 @@
             goto("/settings/profile");
         }
     }
-
-    function handleImportDropdownClick(item: { text: string; value: any }) {
-        if (item.value == "file") {
-            goto(`/settings/export`);
-        } else if (item.value == "url") {
-            urlImportModal.openModal();
-        }
-    }
 </script>
 
 <Drawer bind:open={drawerOpen}>
     <div class="flex gap-4 items-center m-4">
-        <div class="basis-full"></div>
+        <button
+            aria-label="Rechercher"
+            class="btn-icon fa fa-search"
+            onclick={() => {
+                drawerOpen = false;
+                globalSearchModal?.openModal();
+            }}
+        ></button>
         <button
             aria-label="Toggle theme"
             class="btn-icon fa-regular fa-{$theme === 'light' ? 'sun' : 'moon'}"
             onclick={() => toggleTheme()}
         ></button>
+        <div class="basis-full"></div>
         <button
             aria-label="Toggle drawer"
             class="btn-icon block fa fa-close float-right"
@@ -144,21 +153,51 @@
     </div>
     <div class="flex flex-col px-12 gap-8">
         {#each navBarItems as item}
-            <a class="font-semibold text-xl" href={item.value}>{item.text}</a>
+            <a
+                class="font-semibold text-xl"
+                href={item.value}
+                onclick={() => (drawerOpen = false)}>{item.text}</a
+            >
         {/each}
     </div>
     <hr class="my-6 border-input-border" />
     <div class="flex flex-col basis-full">
         {#if navUser}
-            <a class="btn-primary text-center mx-4" href="/trail/edit/new"
-                ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-            >
+            <div class="flex flex-col gap-2.5 mx-4">
+                <a
+                    class="btn-primary text-center flex items-center justify-center gap-2"
+                    href="/trail/edit/new"
+                    onclick={() => (drawerOpen = false)}
+                >
+                    <i class="fa fa-route"></i>
+                    <span>{$_("new-trail") || "Nouvel itinéraire"}</span>
+                </a>
+                <a
+                    class="btn-secondary text-center flex items-center justify-center gap-2"
+                    href="/articles/new"
+                    onclick={() => (drawerOpen = false)}
+                >
+                    <i class="fa fa-feather"></i>
+                    <span>{$_("new-story") || "Nouveau récit"}</span>
+                </a>
+                <button
+                    class="btn-secondary text-center flex items-center justify-center gap-2"
+                    onclick={() => {
+                        drawerOpen = false;
+                        urlImportModal.openModal();
+                    }}
+                >
+                    <i class="fa fa-cloud-arrow-down"></i>
+                    <span>{$_("from-url") || "Depuis une URL"}</span>
+                </button>
+            </div>
             <div class="basis-full"></div>
-            <hr class="border-input-border" />
+            <hr class="border-input-border my-4" />
             <div class="flex gap-4 items-center justify-between m-4">
                 <a
                     class="shrink-0"
                     href="/profile/@{navUser.username.toLowerCase()}"
+                    onclick={() => (drawerOpen = false)}
                 >
                     <img
                         class="rounded-full w-10 aspect-square"
@@ -170,6 +209,7 @@
                 <a
                     href="/profile/@{navUser.username.toLowerCase()}"
                     style="width: calc(100% - 104px)"
+                    onclick={() => (drawerOpen = false)}
                 >
                     <p class="text-sm overflow-hidden text-ellipsis">
                         {navUser.username}
@@ -221,7 +261,13 @@
         {/each}
     </menu>
     {#if navUser}
-        <div class="hidden lg:flex gap-6 items-center">
+        <div class="hidden lg:flex gap-4 items-center">
+            <button
+                aria-label="Rechercher"
+                class="btn-icon fa fa-search"
+                onclick={() => globalSearchModal?.openModal()}
+                title="Rechercher (Cmd+K)"
+            ></button>
             <button
                 aria-label="Toggle theme"
                 class="btn-icon fa-regular fa-{$theme === 'light'
@@ -229,28 +275,23 @@
                     : 'moon'}"
                 onclick={() => toggleTheme()}
             ></button>
-            <nav data-sveltekit-reload>
-                <div class="flex">
-                    <a
-                        class="btn-primary btn-large !rounded-r-none focus:ring-0"
-                        href="/trail/edit/new"
-                        ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
+            <Dropdown
+                items={createDropdownItems}
+                onchange={(item) => handleCreateDropdownClick(item)}
+            >
+                {#snippet children({ toggleMenu: openDropdown })}
+                    <button
+                        onclick={openDropdown}
+                        class="btn-primary btn-large flex items-center gap-2"
+                        type="button"
+                        aria-label="Nouveau"
                     >
-                    <Dropdown
-                        items={importDropdownItems}
-                        onchange={(item) => handleImportDropdownClick(item)}
-                    >
-                        {#snippet children({ toggleMenu: openDropdown })}
-                            <button
-                                onclick={openDropdown}
-                                class="bg-primary rounded-r-lg text-white min-h-12 hover:bg-primary-hover px-3"
-                                aria-label="Open trail create dropdown"
-                                ><i class="fa fa-caret-down"></i></button
-                            >
-                        {/snippet}
-                    </Dropdown>
-                </div>
-            </nav>
+                        <i class="fa fa-plus"></i>
+                        <span>{$_("new") || "Nouveau"}</span>
+                        <i class="fa fa-caret-down text-xs ml-1"></i>
+                    </button>
+                {/snippet}
+            </Dropdown>
             {#if page.data.notifications}
                 <NotificationDropdown></NotificationDropdown>
             {/if}
@@ -277,7 +318,13 @@
             </Dropdown>
         </div>
     {:else}
-        <div class="hidden md:flex items-center gap-8">
+        <div class="hidden md:flex items-center gap-4">
+            <button
+                aria-label="Rechercher"
+                class="btn-icon fa fa-search"
+                onclick={() => globalSearchModal?.openModal()}
+                title="Rechercher (Cmd+K)"
+            ></button>
             <button
                 aria-label="Toggle theme"
                 class="btn-icon fa-regular fa-{$theme === 'light'
@@ -296,3 +343,4 @@
 </nav>
 
 <UrlImportModal bind:this={urlImportModal}></UrlImportModal>
+<GlobalSearchModal bind:this={globalSearchModal}></GlobalSearchModal>

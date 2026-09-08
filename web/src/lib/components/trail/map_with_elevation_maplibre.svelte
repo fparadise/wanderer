@@ -24,6 +24,7 @@
     import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
     import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
     import { StyleSwitcherControl } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
+    import { TRAIL_COLORS } from "$lib/config/map";
     import type { Feature, FeatureCollection, GeoJSON } from "geojson";
     import * as M from "maplibre-gl";
     import "maplibre-gl/dist/maplibre-gl.css";
@@ -45,6 +46,7 @@
         showFullscreen?: boolean;
         showTerrain?: boolean;
         fitBounds?: "animate" | "instant" | "off";
+        fitAllTrails?: boolean;
         onmarkerdragend?:
             | ((marker: M.Marker, wpId?: string) => void)
             | undefined;
@@ -91,6 +93,7 @@
         showFullscreen = false,
         showTerrain = false,
         fitBounds = "instant",
+        fitAllTrails = false,
         elevationProfileContainer = undefined,
         mapOptions = undefined,
         activeTrail = $bindable(0),
@@ -127,18 +130,8 @@
     let terrainEnabled: boolean | null = null;
     let elevationProfileVisibilityPreference: boolean | null = null;
 
-    const trailColors = [
-        "#3549bb", // blue
-        "#ff7f0e", // orange
-        "#2ca02c", // green
-        "#d62728", // red
-        "#9467bd", // purple
-        "#8c564b", // brown
-        "#e377c2", // pink
-        "#373642", // gray
-        "#fae455", // yellow
-        "#17becf", // teal
-    ];
+    const trailColors = TRAIL_COLORS;
+    const WANDERER_BLUE = "#3549bb";
 
     let clusterPopup: M.Popup | null = null;
 
@@ -223,10 +216,13 @@
         trails.forEach((t) => {
             if (t.id) {
                 let fc: FeatureCollection | null = null;
-                if (t.expand?.gpx) {
-                    fc = t.expand.gpx.toGeoJSON();
-                } else if (t.expand?.gpx_data) {
-                    fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
+                const trailExpand = t.expand as any;
+                if (trailExpand?.gpx) {
+                    fc = trailExpand.gpx.toGeoJSON();
+                } else if (trailExpand?.gpx_geojson) {
+                    fc = trailExpand.gpx_geojson;
+                } else if (trailExpand?.gpx_data) {
+                    fc = GPX.parse(trailExpand.gpx_data).toGeoJSON();
                 }
 
                 if (fc) {
@@ -290,9 +286,9 @@
         refreshElevationProfile();
         syncElevationProfileVisibility();
 
-        trails.forEach((t) => {
+        trails.forEach((t, i) => {
             const layerId = t.id!;
-            addTrailLayer(t, layerId, 0, gpxDataMap[layerId]);
+            addTrailLayer(t, layerId, i, gpxDataMap[layerId]);
         });
 
         Object.entries(layerManager.layers).forEach(([id, layer]) => {
@@ -322,7 +318,13 @@
                 mapLoaded &&
                 gpxDataMap[trails[activeTrail].id!]
             ) {
-                focusTrail(trails[activeTrail]);
+                focusTrail(trails[activeTrail], !fitAllTrails);
+                if (fitAllTrails && currentBboxes.length > 0) {
+                    const allBounds = getBounds();
+                    if (allBounds) {
+                        flyToBounds(allBounds);
+                    }
+                }
             } else if (currentBboxes.length > 0) {
                 flyToBounds();
             }
@@ -353,9 +355,55 @@
         terrainEnabled = isTerrainEnabled;
     }
 
+    function getCombinedGeoJson(): FeatureCollection {
+        const allFeatures: Feature[] = [];
+        for (let i = 0; i < trails.length; i++) {
+            const trail = trails[i];
+            if (trail.id && gpxDataMap[trail.id]) {
+                const color = trailColors[
+                    clusterTrails
+                        ? hashStringToIndex(trail.id ?? "", trailColors.length)
+                        : i % trailColors.length
+                ];
+                for (const f of gpxDataMap[trail.id].features) {
+                    allFeatures.push({
+                        ...f,
+                        properties: {
+                            ...f.properties,
+                            stageIndex: i,
+                            stageName: trail.name || `Étape ${i + 1}`,
+                            color: color,
+                        },
+                    });
+                }
+            }
+        }
+        return {
+            type: "FeatureCollection",
+            features: allFeatures,
+        };
+    }
+
     export function refreshElevationProfile() {
+        if (fitAllTrails && trails.length > 1) {
+            const combinedGeoJson = getCombinedGeoJson();
+            if (combinedGeoJson.features.length > 0) {
+                epc?.setProfileLineColor(null);
+                epc?.setProfileFillColor(null);
+                epc?.setData(combinedGeoJson, waypoints);
+                return;
+            }
+        }
+
         const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
         if (activeId && gpxDataMap[activeId]) {
+            const currentColor = fitAllTrails
+                ? trailColors[(activeTrail ?? 0) % trailColors.length]
+                : (clusterTrails
+                    ? trailColors[hashStringToIndex(activeId ?? "", trailColors.length)]
+                    : WANDERER_BLUE);
+            epc?.setProfileFillColor(currentColor);
+            epc?.setProfileLineColor(currentColor);
             epc?.setData(gpxDataMap[activeId]!, waypoints);
         }
     }
@@ -364,7 +412,7 @@
         if (
             showElevation &&
             Object.keys(gpxDataMap).length &&
-            activeTrail !== null &&
+            (fitAllTrails || activeTrail !== null) &&
             elevationProfileVisibilityPreference !== false
         ) {
             epc?.showProfile();
@@ -373,15 +421,21 @@
         }
     }
 
-    function getBounds() {
+    function getBounds(): M.LngLatBounds | null {
         let minX = Infinity,
             minY = Infinity,
             maxX = -Infinity,
             maxY = -Infinity;
 
-        for (const [xMin, yMin, xMax, yMax] of Object.values(gpxDataMap)
+        const bboxes = Object.values(gpxDataMap)
             .filter((d) => d.bbox !== undefined)
-            .map((d) => d.bbox!)) {
+            .map((d) => d.bbox!);
+
+        if (bboxes.length === 0) {
+            return null;
+        }
+
+        for (const [xMin, yMin, xMax, yMax] of bboxes) {
             minX = Math.min(minX, xMin);
             minY = Math.min(minY, yMin);
             maxX = Math.max(maxX, xMax);
@@ -396,23 +450,27 @@
         ) {
             return new M.LngLatBounds([minX, minY, maxX, maxY]);
         } else {
-            return new M.LngLatBounds([0, 0, 0, 0]);
+            return null;
         }
     }
 
     export function fitToBounds(bounds?: M.LngLatBoundsLike) {
-        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
-        const boundsToFit =
-            bounds ??
-            (activeId && gpxDataMap[activeId]
-                ? (gpxDataMap[activeId].bbox as M.LngLatBoundsLike)
-                : getBounds());
-
-        if (!boundsToFit || !map) {
+        if (!map) {
             return;
         }
 
-        map!.fitBounds(boundsToFit, {
+        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
+        const boundsToFit =
+            bounds ??
+            (!fitAllTrails && activeId && gpxDataMap[activeId]?.bbox
+                ? (gpxDataMap[activeId].bbox as M.LngLatBoundsLike)
+                : getBounds());
+
+        if (!boundsToFit) {
+            return;
+        }
+
+        map.fitBounds(boundsToFit, {
             animate: fitBounds == "animate",
             padding: {
                 top: 16,
@@ -421,14 +479,14 @@
                 bottom:
                     16 +
                     (epc?.isProfileShown && !elevationProfileContainer
-                        ? map!.getContainer().clientHeight * 0.3
+                        ? map.getContainer().clientHeight * 0.3
                         : 0),
             },
         });
     }
 
-    function flyToBounds() {
-        fitToBounds();
+    function flyToBounds(bounds?: M.LngLatBoundsLike) {
+        fitToBounds(bounds);
     }
 
     function removeTrailLayer(id: string) {
@@ -444,14 +502,16 @@
         if (!geojson || !map) {
             return;
         }
+        const trailColor = fitAllTrails
+            ? trailColors[index % trailColors.length]
+            : (clusterTrails
+                ? trailColors[hashStringToIndex(id ?? "", trailColors.length)]
+                : WANDERER_BLUE);
+
         const trailLayer = new TrailLayer(
             id,
             geojson,
-            trailColors[
-                clusterTrails
-                    ? hashStringToIndex(id ?? "", trailColors.length)
-                    : index % trailColors.length
-            ],
+            trailColor,
             {
                 listeners: {
                     onEnter: (e) =>
@@ -664,14 +724,14 @@
                 fitBounds !== "off" &&
                 Object.values(gpxDataMap).some((d) => d.bbox !== undefined)
             ) {
-                untrack(() => focusTrail(trails[activeTrail]));
+                untrack(() => focusTrail(trails[activeTrail], !fitAllTrails));
             }
         } else if (activeTrail === null && trails.length) {
             untrack(() => unFocusTrail());
         }
     }
 
-    function focusTrail(trail: Trail) {
+    function focusTrail(trail: Trail, fly: boolean = true) {
         activeTrail = trails.findIndex((t) => t.id == trail.id);
         if (activeTrail < 0) {
             activeTrail = null;
@@ -686,7 +746,9 @@
             if (trail.id && gpxDataMap[trail.id]) {
                 addCaretLayer(gpxDataMap[trail.id]);
             }
-            flyToBounds();
+            if (fly) {
+                flyToBounds();
+            }
         } catch (e) {
             console.warn(e);
         }
@@ -956,8 +1018,16 @@
         }
 
         if (showElevation) {
+            const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
+            const currentColor = fitAllTrails
+                ? trailColors[(activeTrail ?? 0) % trailColors.length]
+                : (clusterTrails
+                    ? trailColors[hashStringToIndex(activeId ?? "", trailColors.length)]
+                    : WANDERER_BLUE);
             epc = new ElevationProfileControl({
                 visible: false,
+                profileLineColor: fitAllTrails && trails.length > 1 ? null : currentColor,
+                profileFillColor: fitAllTrails && trails.length > 1 ? null : currentColor,
                 profileBackgroundColor:
                     $theme == "light" ? "#242734" : "#191b24",
                 backgroundColor: "bg-menu-background/90",
@@ -993,9 +1063,19 @@
         if (showFullscreen) {
             map.addControl(
                 new FullscreenControl(() => {
-                    onfullscreen?.();
+                    if (onfullscreen) {
+                        onfullscreen();
+                    } else {
+                        const target = mapContainer || map?.getContainer();
+                        if (!target) return;
+                        if (!document.fullscreenElement) {
+                            target.requestFullscreen?.().catch((err) => console.error(err));
+                        } else {
+                            document.exitFullscreen?.().catch((err) => console.error(err));
+                        }
+                    }
                 }),
-                "bottom-right",
+                "top-right",
             );
         }
 

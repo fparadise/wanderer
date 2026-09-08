@@ -81,6 +81,16 @@ export class ElevationProfileControl implements IControl {
         this.elevationProfileChart?.toggleTheme(this.settings)
     }
 
+    setProfileLineColor(color: string | null) {
+        this.settings.profileLineColor = color;
+        this.elevationProfileChart?.setProfileLineColor(color);
+    }
+
+    setProfileFillColor(color: string | null) {
+        this.settings.profileFillColor = color;
+        this.elevationProfileChart?.setProfileFillColor(color);
+    }
+
     getContainer(): HTMLDivElement | undefined {
         return this.profileContainer;
     }
@@ -122,6 +132,7 @@ export class ElevationProfileControl implements IControl {
                 this.profileContainer.classList.add(this.settings.backgroundColor ?? "white")
 
                 this.profileContainer.style.setProperty("position", "absolute");
+                this.profileContainer.style.setProperty("z-index", "20");
 
                 if (this.settings.position === "bottom" || !this.settings.position) {
                     // To prevent clashing with MapTiler logo and attribution control

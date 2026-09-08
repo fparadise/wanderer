@@ -82,6 +82,104 @@ function geoJsonObjectToPositionsAndTimes(geoJson: GeoJsonObject): { positions: 
     return { positions: positionsGroups.flat(), times };
 }
 
+export interface StageInfo {
+    stageIndex: number;
+    name: string;
+    color: string;
+    startIndex: number;
+    endIndex: number;
+    startDistance: number;
+    endDistance: number;
+    totalDistance: number;
+}
+
+function drawRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    if (typeof (ctx as any).roundRect === "function") {
+        ctx.beginPath();
+        (ctx as any).roundRect(x, y, w, h, r);
+    } else {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+}
+
+function extractStagesAndPositions(geoJson: GeoJsonObject): {
+    stages: Array<{
+        stageIndex: number;
+        name: string;
+        color: string;
+        positions: Position[];
+    }>;
+    times: Date[];
+} {
+    const stages: Array<{
+        stageIndex: number;
+        name: string;
+        color: string;
+        positions: Position[];
+    }> = [];
+    const times: Date[] = [];
+
+    function processFeature(feature: Feature, defaultIndex: number) {
+        if (!feature.geometry) return;
+        const coords: Position[] = [];
+        if (feature.geometry.type === "LineString") {
+            coords.push(...feature.geometry.coordinates);
+        } else if (feature.geometry.type === "MultiLineString") {
+            coords.push(...feature.geometry.coordinates.flat());
+        }
+        if (coords.length > 0) {
+            stages.push({
+                stageIndex: feature.properties?.stageIndex ?? defaultIndex,
+                name: feature.properties?.stageName || feature.properties?.name || `Étape ${defaultIndex + 1}`,
+                color: feature.properties?.color || "#3549bb",
+                positions: coords,
+            });
+        }
+        if (feature.properties?.coordinateProperties?.times) {
+            const coordinateTimes = feature.properties?.coordinateProperties?.times.map((t: string) => new Date(t));
+            times.push(...coordinateTimes);
+        }
+    }
+
+    if (geoJson.type === "FeatureCollection") {
+        (geoJson as FeatureCollection).features.forEach((f, idx) => {
+            if (f.type === "Feature") {
+                processFeature(f, idx);
+            }
+        });
+    } else if (geoJson.type === "Feature") {
+        processFeature(geoJson as Feature, 0);
+    } else {
+        const geom = geoJson as GeometryObject;
+        const coords: Position[] = [];
+        if (geom.type === "LineString") {
+            coords.push(...geom.coordinates);
+        } else if (geom.type === "MultiLineString") {
+            coords.push(...geom.coordinates.flat());
+        }
+        if (coords.length > 0) {
+            stages.push({
+                stageIndex: 0,
+                name: "Itinéraire",
+                color: "#3549bb",
+                positions: coords,
+            });
+        }
+    }
+
+    return { stages, times };
+}
+
 /**
  * Event data to `onMove` and `onClick` callback
  */
@@ -167,6 +265,11 @@ export type ElevationProfileOptions = {
      * Default: `"#66ccff"`
      */
     profileLineColor?: string | null;
+    /**
+     * Color or tint used to fill the area under the elevation profile line.
+     * Default: light subtle tint (rgba(59, 130, 246, 0.22) fading down)
+     */
+    profileFillColor?: string | null;
     /**
      * Width of the elevation profile line.
      *
@@ -325,9 +428,9 @@ const elevationProfileDefaultOptions: ElevationProfileOptions = {
     displayDistanceLabels: true,
     displayUnits: true,
     labelColor: "#0009",
-    profileLineColor: "#66ccff",
-    profileLineWidth: 1.5,
-    profileBackgroundColor: "#66ccff22",
+    profileLineColor: null,
+    profileLineWidth: 3,
+    profileFillColor: "#3549bb",
     displayTooltip: true,
     tooltipTextColor: "#fff",
     tooltipBackgroundColor: "#000A",
@@ -359,6 +462,9 @@ export class ElevationProfile {
     private canvas: HTMLCanvasElement;
     private settings: ElevationProfileOptions;
     public chart: Chart<"line", Array<number>, number>;
+    public stages: StageInfo[] = [];
+    private pointStageMap: number[] = [];
+    private pointStageDistance: number[] = [];
     private elevatedPositions: Position[] = [];
     private elevatedPositionsAdjustedUnit: Position[] = [];
     private cumulatedDistance: number[] = [];
@@ -372,23 +478,24 @@ export class ElevationProfile {
     private speed: number[] = [];
 
     private gradeColor = [
-        "#0d0887", // 0% and less
-        "#3e049c", // 1
-        "#6300a7", // 2
-        "#8606a6", // 3
-        "#a62098", // 4
-        "#c03a83", // 5
-        "#d5546e", // 6
-        "#e76f5a", // 7
-        "#f68d45", // 8
-        "#fdae32", // 9
-        "#fcd225", // 10
-        "#f0f921", // more than 10%
-    ]
+        "#4ade80", // 0: 0% à 2.5% (vert pâle / plat)
+        "#22c55e", // 1: 2.5% à 5% (vert)
+        "#84cc16", // 2: 5% à 7.5% (vert lime / faux-plat montant)
+        "#eab308", // 3: 7.5% à 10% (jaune / côte modérée)
+        "#f59e0b", // 4: 10% à 12.5% (jaune ambré)
+        "#f97316", // 5: 12.5% à 15% (orange vif / côte raide)
+        "#ea580c", // 6: 15% à 17.5% (orange foncé)
+        "#ef4444", // 7: 17.5% à 20% (rouge / très raide)
+        "#dc2626", // 8: 20% à 22.5% (rouge vif)
+        "#b91c1c", // 9: 22.5% à 25% (rouge foncé)
+        "#7f1d1d", // 10: 25% à 27.5% (bordeaux foncé)
+        "#1c1917", // 11: > 27.5% (noir / mur)
+    ];
 
     private width?: number
     private height?: number
     private gradient?: CanvasGradient;
+    private bgGradient?: CanvasGradient;
 
 
     constructor(
@@ -449,20 +556,12 @@ export class ElevationProfile {
                         yAxisID: "y",
                         data: [],
                         pointRadius: 0,
-                        fill: !!this.settings.profileBackgroundColor,
-                        borderColor: (context) => {
-                            const chart = context.chart;
-                            return this.gradientFromElevation(chart)
-                        },
-                        // borderColor: this.settings.profileLineColor ?? "#0000",
-                        backgroundColor: this.settings.profileBackgroundColor ?? "#0000",
+                        fill: "start",
+                        borderColor: (context: any) => this.createProfileLineColor(context.chart),
+                        backgroundColor: (context: any) => this.createProfileFillColor(context.chart),
                         tension: 0.1,
                         spanGaps: true,
-
-                        // If line color is null, the line width is set to 0
-                        borderWidth: this.settings.profileLineColor
-                            ? this.settings.profileLineWidth
-                            : 0,
+                        borderWidth: this.settings.profileLineWidth ?? 2.5,
                     }
                 ],
             },
@@ -473,7 +572,7 @@ export class ElevationProfile {
                         left: this.settings.paddingLeft,
                         right: this.settings.paddingRight,
                         bottom: this.settings.paddingBottom,
-                        top: this.settings.paddingTop,
+                        top: this.settings.paddingTop ?? 16,
                     },
                 },
                 onClick: (_e, item) => {
@@ -485,7 +584,7 @@ export class ElevationProfile {
                         this.settings.onClick.apply(this, [
                             {
                                 position: this.elevatedPositionsAdjustedUnit[i],
-                                distance: this.cumulatedDistanceAdjustedUnit[i],
+                                distance: this.pointStageDistance[i] ?? this.cumulatedDistanceAdjustedUnit[i],
                                 dPlus: this.cumulatedDPlus[i],
                                 gradePercent: this.grade[i],
                             },
@@ -502,7 +601,7 @@ export class ElevationProfile {
                         this.settings.onMove.apply(this, [
                             {
                                 position: this.elevatedPositionsAdjustedUnit[i],
-                                distance: this.cumulatedDistanceAdjustedUnit[i],
+                                distance: this.pointStageDistance[i] ?? this.cumulatedDistanceAdjustedUnit[i],
                                 dPlus: this.cumulatedDPlus[i],
                                 gradePercent: this.grade[i],
                             },
@@ -526,6 +625,29 @@ export class ElevationProfile {
                             tickLength: 5,
                             tickColor: "#0002"
                         },
+                        afterBuildTicks: (scale) => {
+                            if (!this.stages || this.stages.length <= 1) return;
+
+                            const ticks: { value: number }[] = [];
+                            for (const stage of this.stages) {
+                                const len = stage.totalDistance;
+                                let step = 5;
+                                if (len <= 4) step = 1;
+                                else if (len <= 10) step = 2;
+                                else if (len <= 25) step = 5;
+                                else if (len <= 60) step = 10;
+                                else step = 20;
+
+                                // Stage start tick (0 km)
+                                ticks.push({ value: stage.startDistance });
+
+                                // Intermediate ticks inside this stage
+                                for (let d = step; d < len - step * 0.35; d += step) {
+                                    ticks.push({ value: stage.startDistance + d });
+                                }
+                            }
+                            scale.ticks = ticks;
+                        },
                         ticks: {
                             stepSize: 0.1,
                             align: "inner",
@@ -533,10 +655,25 @@ export class ElevationProfile {
                             color: this.settings.labelColor,
                             maxRotation: 0,
                             callback: (value, index) => {
+                                const numVal = Number(value);
+                                if (this.stages && this.stages.length > 1) {
+                                    const stage = this.stages.find(
+                                        (s) => numVal >= s.startDistance - 0.02 && numVal <= s.endDistance + 0.02
+                                    );
+                                    if (stage) {
+                                        const relDist = numVal - stage.startDistance;
+                                        if (relDist < 0.05) {
+                                            return `0 ${distanceUnit}`;
+                                        }
+                                        const rounded = Math.round(relDist * 10) / 10;
+                                        return `${rounded} ${distanceUnit}`;
+                                    }
+                                }
+
                                 if (index % 10 !== 0) {
                                     return "";
                                 }
-                                const roundedValue = ~~((value as number) * 100) / 100;
+                                const roundedValue = ~~((numVal as number) * 100) / 100;
                                 return this.settings.displayUnits
                                     ? `${roundedValue} ${distanceUnit}`
                                     : roundedValue;
@@ -614,7 +751,7 @@ export class ElevationProfile {
                     tooltip: {
                         enabled: this.settings.displayTooltip,
                         yAlign: "center",
-                        cornerRadius: 3,
+                        cornerRadius: 4,
                         displayColors: false,
                         backgroundColor: this.settings.tooltipBackgroundColor,
                         bodyColor: this.settings.tooltipTextColor,
@@ -627,26 +764,39 @@ export class ElevationProfile {
                                 if (tooltipItem.datasetIndex != 0) {
                                     return "";
                                 }
-                                const tooltipInfo = [];
+                                const idx = tooltipItem.dataIndex;
+                                const stageIdx = this.pointStageMap[idx] ?? 0;
+                                const stage = this.stages[stageIdx];
+                                const stageDist = this.pointStageDistance[idx] ?? this.cumulatedDistanceAdjustedUnit[idx];
+
+                                const tooltipInfo: string[] = [];
+                                if (stage && this.stages.length > 1) {
+                                    tooltipInfo.push(`${stage.name}`);
+                                }
+
                                 if (this.settings.tooltipDisplayDistance) {
-                                    tooltipInfo.push(
-                                        `After: ${this.cumulatedDistanceAdjustedUnit[
-                                            tooltipItem.dataIndex
-                                        ].toFixed(2)} ${distanceUnit} ${this.cumulatedTime.length ? '(' + formatTimeHHMM(this.cumulatedTime[tooltipItem.dataIndex]) + ')' : ''}`
-                                    );
+                                    if (stage && this.stages.length > 1) {
+                                        tooltipInfo.push(
+                                            `Distance : ${stageDist.toFixed(2)} ${distanceUnit} / ${stage.totalDistance.toFixed(1)} ${distanceUnit}`
+                                        );
+                                    } else {
+                                        tooltipInfo.push(
+                                            `Distance : ${stageDist.toFixed(2)} ${distanceUnit} ${this.cumulatedTime.length ? '(' + formatTimeHHMM(this.cumulatedTime[idx]) + ')' : ''}`
+                                        );
+                                    }
                                 }
 
                                 if (this.settings.tooltipDisplayElevation) {
                                     tooltipInfo.push(
-                                        `Elevation: ${this.elevatedPositionsAdjustedUnit[
-                                            tooltipItem.dataIndex
-                                        ][2].toFixed(2)} ${elevationUnit}`
+                                        `Altitude : ${this.elevatedPositionsAdjustedUnit[
+                                            idx
+                                        ][2].toFixed(0)} ${elevationUnit}`
                                     );
                                 }
 
                                 if (this.settings.tooltipDisplayDPlus) {
                                     tooltipInfo.push(
-                                        `D+: ${this.cumulatedDPlus[tooltipItem.dataIndex].toFixed(
+                                        `D+ : ${this.cumulatedDPlus[idx].toFixed(
                                             0
                                         )} ${elevationUnit}`
                                     );
@@ -654,13 +804,13 @@ export class ElevationProfile {
 
                                 if (this.settings.tooltipDisplayGrade) {
                                     tooltipInfo.push(
-                                        `Grade: ${this.grade[tooltipItem.dataIndex].toFixed(1)}%`
+                                        `Pente : ${this.grade[idx].toFixed(1)}%`
                                     );
                                 }
 
                                 if (this.settings.tooltipDisplaySpeed && this.speed.length) {
-                                    tooltipInfo.push(`Speed: ${this.speed[
-                                        tooltipItem.dataIndex
+                                    tooltipInfo.push(`Vitesse : ${this.speed[
+                                        idx
                                     ]?.toFixed(2)} ${distanceUnit}/h`
                                     );
                                 }
@@ -687,6 +837,39 @@ export class ElevationProfile {
             },
 
             plugins: [
+                {
+                    id: "stageSeparatorPlugin",
+                    afterDraw: (chart) => {
+                        if (!this.stages || this.stages.length <= 1) return;
+                        const ctx = chart.ctx;
+                        const chartArea = chart.chartArea;
+                        const xScale = chart.scales.x;
+                        if (!ctx || !chartArea || !xScale) return;
+
+                        ctx.save();
+
+                        this.stages.forEach((stage, idx) => {
+                            const xStart = xScale.getPixelForValue(stage.startDistance);
+                            const xEnd = xScale.getPixelForValue(stage.endDistance);
+
+                            // Draw vertical separator at stage boundary
+                            if (idx > 0) {
+                                ctx.beginPath();
+                                ctx.setLineDash([4, 4]);
+                                ctx.strokeStyle = this.settings.labelColor
+                                    ? this.colorWithAlpha(this.settings.labelColor, 0.25)
+                                    : "rgba(100, 116, 139, 0.3)";
+                                ctx.lineWidth = 1.5;
+                                ctx.moveTo(xStart, chartArea.top);
+                                ctx.lineTo(xStart, chartArea.bottom);
+                                ctx.stroke();
+                                ctx.setLineDash([]);
+                            }
+                        });
+
+                        ctx.restore();
+                    },
+                },
                 {
                     id: "waypointPlugin",
                     afterDraw: (chart, args, options) => {
@@ -798,7 +981,7 @@ export class ElevationProfile {
         return null;
     }
 
-    gradientFromElevation(chart: Chart, force: boolean = false) {
+    gradientFromElevation(chart: Chart, force: boolean = false, alpha?: string) {
         const ctx = chart.ctx;
         const chartArea = chart.chartArea;
 
@@ -813,36 +996,70 @@ export class ElevationProfile {
             return;
         }
 
+        if (alpha) {
+            if (!this.bgGradient || this.width !== chartWidth || this.height !== chartHeight || force) {
+                this.bgGradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0) as CanvasGradient;
+
+                const firstColor = this.gradeColor[0].length === 7 ? this.gradeColor[0] + alpha : this.gradeColor[0];
+                this.bgGradient.addColorStop(0, firstColor);
+
+                let prevColor = this.gradeColor[0];
+                for (let i = 0; i < this.grade.length; i++) {
+                    const grade = ~~(Math.abs(this.grade[i]) / 2.5);
+
+                    let color;
+                    if (grade < 1) {
+                        color = this.gradeColor[0];
+                    } else if (grade > 10) {
+                        color = this.gradeColor[11];
+                    } else {
+                        color = this.gradeColor[grade];
+                    }
+
+                    if (color !== prevColor) {
+                        const percentDone = this.cumulatedDistance[i] / this.cumulatedDistance[this.cumulatedDistance.length - 1];
+                        const stopColor = color.length === 7 ? color + alpha : color;
+                        this.bgGradient.addColorStop(percentDone, stopColor);
+
+                        prevColor = color;
+                    }
+                }
+            }
+            return this.bgGradient;
+        }
+
         if (!this.gradient || this.width !== chartWidth || this.height !== chartHeight || force) {
             this.width = chartWidth;
             this.height = chartHeight;
 
             this.gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0) as CanvasGradient;
 
-            this.gradient.addColorStop(0, this.gradeColor[0])
+            this.gradient.addColorStop(0, this.gradeColor[0]);
 
+            const maxDist = this.cumulatedDistance.at(-1) || 1;
             let prevColor = this.gradeColor[0];
+            let lastOffset = 0;
+
             for (let i = 0; i < this.grade.length; i++) {
                 const grade = ~~(Math.abs(this.grade[i]) / 2.5);
 
                 let color;
                 if (grade < 1) {
-                    color = this.gradeColor[0]
-                }
-                else if (grade > 10) {
+                    color = this.gradeColor[0];
+                } else if (grade > 10) {
                     color = this.gradeColor[11];
                 } else {
                     color = this.gradeColor[grade];
                 }
 
-
                 if (color !== prevColor) {
-                    const percentDone = this.cumulatedDistance[i] / this.cumulatedDistance[this.cumulatedDistance.length - 1]
-                    this.gradient.addColorStop(percentDone, color);
-
+                    const percentDone = Math.max(lastOffset, Math.min(1, this.cumulatedDistance[i] / maxDist));
+                    if (percentDone >= lastOffset) {
+                        this.gradient.addColorStop(percentDone, color);
+                        lastOffset = percentDone;
+                    }
                     prevColor = color;
                 }
-
             }
         }
         return this.gradient;
@@ -889,12 +1106,78 @@ export class ElevationProfile {
         };
     }
 
+    private colorWithAlpha(color: string, alpha: number): string {
+        if (!color) return `rgba(53, 73, 187, ${alpha})`;
+        if (color.startsWith("#")) {
+            let hex = color.slice(1);
+            if (hex.length === 8) {
+                hex = hex.slice(0, 6);
+            }
+            if (hex.length === 3) {
+                hex = hex.split("").map((c) => c + c).join("");
+            }
+            if (hex.length === 6) {
+                const r = parseInt(hex.slice(0, 2), 16);
+                const g = parseInt(hex.slice(2, 4), 16);
+                const b = parseInt(hex.slice(4, 6), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+        } else if (color.startsWith("rgb")) {
+            const matches = color.match(/\d+/g);
+            if (matches && matches.length >= 3) {
+                return `rgba(${matches[0]}, ${matches[1]}, ${matches[2]}, ${alpha})`;
+            }
+        }
+        return color;
+    }
+
+    createProfileLineColor(chart: Chart): CanvasGradient | string {
+        if (this.settings.profileLineColor) {
+            return this.settings.profileLineColor;
+        }
+        return this.gradientFromElevation(chart, true) || this.gradeColor[0];
+    }
+
+    createProfileFillColor(chart: Chart): CanvasGradient | string {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+
+        const defaultFill = this.settings.profileFillColor;
+        if (!this.stages || this.stages.length <= 1) {
+            const color = defaultFill || this.stages?.[0]?.color || "#3549bb";
+            return this.colorWithAlpha(color, 0.12);
+        }
+
+        if (!ctx || !chartArea || chartArea.right <= chartArea.left) {
+            return this.colorWithAlpha(this.stages[0]?.color ?? "#3549bb", 0.12);
+        }
+
+        const totalDist = this.cumulatedDistanceAdjustedUnit.at(-1) || 1;
+        const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+
+        for (let s = 0; s < this.stages.length; s++) {
+            const stage = this.stages[s];
+            const p1 = Math.max(0, Math.min(1, stage.startDistance / totalDist));
+            const p2 = Math.max(0, Math.min(1, stage.endDistance / totalDist));
+            const flatTint = this.colorWithAlpha(stage.color, 0.12);
+            gradient.addColorStop(p1, flatTint);
+            gradient.addColorStop(p2, flatTint);
+        }
+
+        return gradient;
+    }
+
+    fillGradient(chart: Chart): CanvasGradient | string {
+        return this.createProfileFillColor(chart);
+    }
+
     toggleTheme(options: ElevationProfileOptions) {
         this.settings = {
             ...this.settings,
             ...options,
         };
-        this.chart.data.datasets[0].backgroundColor = this.settings.profileBackgroundColor ?? "#0000";
+        this.chart.data.datasets[0].backgroundColor = (context: any) => this.createProfileFillColor(context.chart);
+        this.chart.data.datasets[0].borderColor = (context: any) => this.createProfileLineColor(context.chart);
         this.chart.options.scales!.x!.ticks!.color = this.settings.labelColor;
 
         this.chart.options.scales!.y!.grid!.color = this.settings.elevationGridColor;
@@ -906,42 +1189,99 @@ export class ElevationProfile {
         this.chart.update();
     }
 
-    async setData(data: GeoJsonObject, waypoints?: Waypoint[]) {
-        // Concatenates the positions that may come from multiple LineStrings or MultiLineString
-        const { positions, times } = geoJsonObjectToPositionsAndTimes(data);
-
-        this.times = times;
-
-        this.elevatedPositions = smoothElevations(positions, Math.ceil(positions.length / 100));
-
-        this.cumulatedDistance = haversineCumulatedDistanceWgs84(
-            this.elevatedPositions
-        );
-
-        // Conversion of distance to miles and elevation to feet
-        if (this.settings.unit === "imperial") {
-            this.cumulatedDistanceAdjustedUnit = this.cumulatedDistance.map(
-                (dist) => dist * MILES_PER_METER
-            );
-            this.elevatedPositionsAdjustedUnit = this.elevatedPositions.map((pos) => [
-                pos[0],
-                pos[1],
-                pos[2] * FEET_PER_METER,
-            ]);
-            this.cumulatedDPlus = this.cumulatedDPlus.map(
-                (ele) => ele * FEET_PER_METER
-            );
-        } else {
-            this.cumulatedDistanceAdjustedUnit = this.cumulatedDistance.map(
-                (dist) => dist / 1000
-            ); // we still need to convert distance to km
-            this.elevatedPositionsAdjustedUnit = this.elevatedPositions;
+    setProfileLineColor(color: string | null) {
+        this.settings.profileLineColor = color;
+        if (this.chart?.data?.datasets?.[0]) {
+            this.chart.data.datasets[0].borderColor = (context: any) => this.createProfileLineColor(context.chart);
+            this.chart.update();
         }
+    }
+
+    setProfileFillColor(color: string | null) {
+        this.settings.profileFillColor = color;
+        if (this.chart?.data?.datasets?.[0]) {
+            this.chart.data.datasets[0].backgroundColor = (context: any) => this.createProfileFillColor(context.chart);
+            this.chart.update();
+        }
+    }
+
+    async setData(data: GeoJsonObject, waypoints?: Waypoint[]) {
+        const { stages: rawStages, times } = extractStagesAndPositions(data);
+        this.times = times;
+        this.waypoints = waypoints ?? [];
+        this.waypointPositions = [];
+
+        this.stages = [];
+        this.pointStageMap = [];
+        this.pointStageDistance = [];
+
+        const isImperial = this.settings.unit === "imperial";
+        const distConversion = isImperial ? MILES_PER_METER : 0.001;
+        const eleConversion = isImperial ? FEET_PER_METER : 1;
+
+        const allElevatedPositions: Position[] = [];
+        const allCumulatedDistances: number[] = [];
+        let currentGlobalDist = 0;
+
+        for (let sIdx = 0; sIdx < rawStages.length; sIdx++) {
+            const rawStage = rawStages[sIdx];
+            if (rawStage.positions.length === 0) continue;
+
+            const smoothed = smoothElevations(
+                rawStage.positions,
+                Math.max(1, Math.ceil(rawStage.positions.length / 100))
+            );
+
+            const stageDistancesMeters = smoothed.length >= 2
+                ? haversineCumulatedDistanceWgs84(smoothed)
+                : [0];
+
+            const stageStartIndex = allElevatedPositions.length;
+            const stageStartDistAdjusted = currentGlobalDist * distConversion;
+
+            for (let pIdx = 0; pIdx < smoothed.length; pIdx++) {
+                const pos = smoothed[pIdx];
+                const distInStageMeters = stageDistancesMeters[pIdx] || 0;
+                const globalDistMeters = currentGlobalDist + distInStageMeters;
+
+                allElevatedPositions.push(pos);
+                allCumulatedDistances.push(globalDistMeters);
+
+                const pointIndex = allElevatedPositions.length - 1;
+                this.pointStageMap[pointIndex] = sIdx;
+                this.pointStageDistance[pointIndex] = distInStageMeters * distConversion;
+            }
+
+            const stageEndIndex = allElevatedPositions.length - 1;
+            const stageTotalDistMeters = stageDistancesMeters.at(-1) || 0;
+            currentGlobalDist += stageTotalDistMeters;
+            const stageEndDistAdjusted = currentGlobalDist * distConversion;
+
+            this.stages.push({
+                stageIndex: rawStage.stageIndex,
+                name: rawStage.name,
+                color: rawStage.color,
+                startIndex: stageStartIndex,
+                endIndex: stageEndIndex,
+                startDistance: stageStartDistAdjusted,
+                endDistance: stageEndDistAdjusted,
+                totalDistance: stageEndDistAdjusted - stageStartDistAdjusted,
+            });
+        }
+
+        this.elevatedPositions = allElevatedPositions;
+        this.cumulatedDistance = allCumulatedDistances;
+        this.cumulatedDistanceAdjustedUnit = allCumulatedDistances.map((d) => d * distConversion);
+        this.elevatedPositionsAdjustedUnit = allElevatedPositions.map((pos) => [
+            pos[0],
+            pos[1],
+            pos[2] * eleConversion,
+        ]);
 
         this.cumulatedDPlus = [];
         this.grade = [];
-        this.waypoints = waypoints ?? [];
-        this.waypointPositions = [];
+        this.cumulatedTime = [];
+        this.speed = [];
 
         let cumulatedDPlus = 0;
         let cumulatedTime = 0;
@@ -949,16 +1289,17 @@ export class ElevationProfile {
         const minSegmentDistance = (this.cumulatedDistance.at(-1) ?? 1000) / 100;
         let segmentStartIndex = 0;
 
-        // Initialize an array to store the minimum distance for each waypoint
-        const minDistances = new Array(waypoints?.length).fill(Infinity);
+        const minDistances = new Array(this.waypoints.length).fill(Infinity);
 
         for (let i = 0; i < this.elevatedPositions.length; i++) {
-
-            // Check if a waypoint is closest to this point
+            // Check waypoint proximity
             this.waypoints.forEach((waypoint, waypointIndex) => {
-                const distance = haversineDistance(this.elevatedPositions[i][1], this.elevatedPositions[i][0], waypoint.lat, waypoint.lon);
-
-                // Update if the current route coordinate is closer to the waypoint
+                const distance = haversineDistance(
+                    this.elevatedPositions[i][1],
+                    this.elevatedPositions[i][0],
+                    waypoint.lat,
+                    waypoint.lon
+                );
                 if (distance < minDistances[waypointIndex]) {
                     minDistances[waypointIndex] = distance;
                     this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[i];
@@ -967,70 +1308,60 @@ export class ElevationProfile {
             });
 
             const elevation = this.elevatedPositions[i][2];
-            const time = this.times[i]
-            if (i > 1) {
+            const time = this.times[i];
+            if (i > 0) {
                 const elevationPrevious = this.elevatedPositions[i - 1][2];
                 const elevationDelta = elevation - elevationPrevious;
                 const segmentDistance =
                     this.cumulatedDistance[i] - this.cumulatedDistance[segmentStartIndex];
                 cumulatedDPlus += Math.max(0, elevationDelta);
-                this.cumulatedDPlus.push(cumulatedDPlus);
+                this.cumulatedDPlus.push(cumulatedDPlus * eleConversion);
 
-                if (time) {
+                if (time && this.times[i - 1]) {
                     const timePrevious = this.times[i - 1];
-                    const timeDelta = (time.getTime() - timePrevious.getTime()) / (1000);
+                    const timeDelta = (time.getTime() - timePrevious.getTime()) / 1000;
                     cumulatedTime += timeDelta;
-                    this.cumulatedTime.push(cumulatedTime)
+                    this.cumulatedTime.push(cumulatedTime);
                 }
 
-
-                // Check if the segment distance is greater than or equal to the minimum threshold
                 if (segmentDistance >= minSegmentDistance || i === this.elevatedPositions.length - 1) {
-                    // Calculate the grade for the consolidated segment
                     const elevationStart = this.elevatedPositions[segmentStartIndex][2];
                     const elevationEnd = this.elevatedPositions[i][2];
                     const elevationDelta = elevationEnd - elevationStart;
-                    const gradePercent = (elevationDelta / segmentDistance) * 100; // Grade as a percentage
+                    const gradePercent = segmentDistance > 0 ? (elevationDelta / segmentDistance) * 100 : 0;
 
                     let speed;
                     if (this.times.length) {
-                        const distanceStart = this.cumulatedDistance[segmentStartIndex]
-                        const distanceEnd = this.cumulatedDistance[i]
-                        const distanceDelta = distanceEnd - distanceStart
-
-                        const timeStart = this.times[segmentStartIndex]
-                        const timeEnd = this.times[i]
+                        const distanceStart = this.cumulatedDistance[segmentStartIndex];
+                        const distanceEnd = this.cumulatedDistance[i];
+                        const distanceDelta = distanceEnd - distanceStart;
+                        const timeStart = this.times[segmentStartIndex];
+                        const timeEnd = this.times[i];
                         if (timeStart && timeEnd) {
-                            const timeDelta = (timeEnd.getTime() - timeStart.getTime()) / 1000
-
-                            speed = (distanceDelta / timeDelta)
-                            if (this.settings.unit === "imperial") {
-                                speed = speed * MILES_HOUR_PER_METER_SECOND
-                            } else {
-                                speed = speed * KILOMETERS_HOUR_PER_METER_SECOND;
+                            const timeDelta = (timeEnd.getTime() - timeStart.getTime()) / 1000;
+                            if (timeDelta > 0) {
+                                speed = distanceDelta / timeDelta;
+                                speed = isImperial
+                                    ? speed * MILES_HOUR_PER_METER_SECOND
+                                    : speed * KILOMETERS_HOUR_PER_METER_SECOND;
                             }
                         }
-
                     }
 
-
-                    // Apply the same grade to all positions within this segment
                     for (let j = segmentStartIndex; j <= i; j++) {
                         this.grade.push(gradePercent);
-                        if (speed) {
-                            this.speed.push(speed)
+                        if (speed !== undefined) {
+                            this.speed.push(speed);
                         }
                     }
-
-                    // Move to the next segment
                     segmentStartIndex = i + 1;
                 }
+            } else {
+                this.cumulatedDPlus.push(0);
             }
         }
 
         this.grade.push(this.grade.at(-1) ?? 0);
-        this.cumulatedDPlus.push(cumulatedDPlus);
-
 
         let minElevation = +Infinity;
         let maxElevation = -Infinity;
@@ -1039,34 +1370,22 @@ export class ElevationProfile {
             if (this.elevatedPositionsAdjustedUnit[i][2] < minElevation) {
                 minElevation = this.elevatedPositionsAdjustedUnit[i][2];
             }
-
             if (this.elevatedPositionsAdjustedUnit[i][2] > maxElevation) {
                 maxElevation = this.elevatedPositionsAdjustedUnit[i][2];
             }
         }
 
-        const elevationPadding = (maxElevation - minElevation) * 0.1;
+        const elevationPadding = (maxElevation - minElevation) * 0.1 || 10;
         this.chart.data.labels = this.cumulatedDistanceAdjustedUnit;
-        this.chart.data.datasets[0].data = this.elevatedPositionsAdjustedUnit.map(
-            (pos) => pos[2]
-        );
+        this.chart.data.datasets[0].data = this.elevatedPositionsAdjustedUnit.map((pos) => pos[2]);
 
-        const gradient = this.gradientFromElevation(this.chart, true);
-        if (gradient) {
-            this.chart.data.datasets[0].borderColor = gradient
-        }
+        this.chart.data.datasets[0].borderColor = (context: any) => this.createProfileLineColor(context.chart);
+        this.chart.data.datasets[0].backgroundColor = (context: any) => this.createProfileFillColor(context.chart);
 
-        if (
-            this.chart.options.scales &&
-            this.chart.options.scales.x &&
-            this.chart.options.scales.y
-        ) {
-            this.chart.options.scales.x.min = this.cumulatedDistanceAdjustedUnit[0];
+        if (this.chart.options.scales && this.chart.options.scales.x && this.chart.options.scales.y) {
+            this.chart.options.scales.x.min = this.cumulatedDistanceAdjustedUnit[0] || 0;
             this.chart.options.scales.x.max =
-                this.cumulatedDistanceAdjustedUnit[
-                this.cumulatedDistanceAdjustedUnit.length - 1
-                ];
-
+                this.cumulatedDistanceAdjustedUnit[this.cumulatedDistanceAdjustedUnit.length - 1] || 0;
 
             this.chart.options.scales.y.min = minElevation - elevationPadding;
             this.chart.options.scales.y.max = maxElevation + elevationPadding;

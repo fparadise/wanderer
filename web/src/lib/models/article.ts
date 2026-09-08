@@ -14,6 +14,8 @@ export class Article {
     relation: string[];
     author?: string;
     participants?: string[];
+    tags: string[];
+    technical_difficulty: number;
     expand?: {
         relation?: Trail[];
         author?: Actor;
@@ -35,6 +37,8 @@ export class Article {
             relation?: string[];
             author?: string;
             participants?: string[];
+            tags?: string[];
+            technical_difficulty?: number;
             expand?: {
                 relation?: Trail[];
                 author?: Actor;
@@ -53,6 +57,8 @@ export class Article {
         this.relation = params?.relation ?? [];
         this.author = params?.author;
         this.participants = params?.participants ?? [];
+        this.tags = params?.tags ?? [];
+        this.technical_difficulty = params?.technical_difficulty ?? 0;
         this.expand = params?.expand;
     }
 }

@@ -1,24 +1,32 @@
 import type { Trail } from "$lib/models/trail";
+import type { Article } from "$lib/models/article";
 import { categories_index } from "$lib/stores/category_store";
-import { feed_index } from "$lib/stores/feed_store";
 import { subcategories_index } from "$lib/stores/subcategory_store";
-import { trails_recommend } from "$lib/stores/trail_store";
+import { articles_index } from "$lib/stores/article_store";
 import type { Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ fetch }) => {
     try {
-        await categories_index(fetch)
-        await subcategories_index(fetch)
+        const [_, __, articlesResult, recentTrailsRes] = await Promise.all([
+            categories_index(fetch).catch(() => []),
+            subcategories_index(fetch).catch(() => []),
+            articles_index(1, 12, fetch).catch(() => ({ items: [], totalItems: 0 })),
+            fetch("/api/v1/trail?perPage=8&sort=-created&expand=category,author")
+                .then((r) => (r.ok ? r.json() : { items: [] }))
+                .catch(() => ({ items: [] })),
+        ]);
 
-        const feed = await feed_index(1, 10, fetch);
-
-        const trails: Trail[] = await trails_recommend(4, fetch)
-        return { trails: trails ?? [], feed }
-
+        return {
+            articles: (articlesResult?.items || []) as Article[],
+            recentTrails: (recentTrailsRes?.items || []) as Trail[],
+        };
     } catch (e) {
         if (!(e instanceof Error) || e.message !== "Unauthorized") {
-            console.error(e)
+            console.error(e);
         }
     }
-    return { trails: [], feed: { items: [], page: 1, perPage: 1, totalItems: 0, totalPages: 0 } }
+    return {
+        articles: [],
+        recentTrails: [],
+    };
 };

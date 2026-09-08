@@ -67,6 +67,8 @@ export async function articles_create(
     formData.append("total_elevation_gain", (articleData.total_elevation_gain ?? 0).toString());
     formData.append("total_days", (articleData.total_days ?? 1).toString());
     formData.append("date", articleData.date || new Date().toISOString().substring(0, 10));
+    formData.append("technical_difficulty", (articleData.technical_difficulty ?? 0).toString());
+    formData.append("tags", JSON.stringify(articleData.tags || []));
 
     if (user?.actor) {
         formData.append("author", user.actor);
@@ -102,6 +104,7 @@ export async function articles_update(
     id: string,
     articleData: Partial<Article>,
     heroFiles: File[] = [],
+    deletedHeroImages: string[] = [],
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch
 ): Promise<Article> {
     const formData = new FormData();
@@ -113,6 +116,8 @@ export async function articles_update(
     if (articleData.total_elevation_gain !== undefined) formData.append("total_elevation_gain", articleData.total_elevation_gain.toString());
     if (articleData.total_days !== undefined) formData.append("total_days", articleData.total_days.toString());
     if (articleData.date !== undefined) formData.append("date", articleData.date);
+    if (articleData.technical_difficulty !== undefined) formData.append("technical_difficulty", articleData.technical_difficulty.toString());
+    if (articleData.tags !== undefined) formData.append("tags", JSON.stringify(articleData.tags));
 
     if (articleData.relation !== undefined) {
         for (const trailId of articleData.relation) {
@@ -128,6 +133,10 @@ export async function articles_update(
 
     for (const file of heroFiles) {
         formData.append("hero_images", file);
+    }
+
+    for (const deletedImg of deletedHeroImages) {
+        formData.append("hero_images-", deletedImg.replace(/^.*[\\/]/, ""));
     }
 
     const r = await f(`/api/v1/articles/${id}`, {
