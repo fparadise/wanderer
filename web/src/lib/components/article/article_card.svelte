@@ -60,7 +60,7 @@
         <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 via-50% to-transparent pointer-events-none"></div>
 
         <!-- Top Header: Badge "À la une" + tags / stats -->
-        <div class="relative z-10 w-full flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8 lg:p-10">
+        <div class="relative z-1 w-full flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8 lg:p-10">
             <div class="flex flex-wrap items-center gap-2">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-primary text-white shadow-md">
                     <i class="fa-solid fa-compass"></i> À la une
@@ -86,7 +86,7 @@
         </div>
 
         <!-- Bottom Content Overlay (Spans full width, with readable text container) -->
-        <div class="relative z-10 w-full p-6 sm:p-8 lg:p-10 space-y-6">
+        <div class="relative z-1 w-full p-6 sm:p-8 lg:p-10 space-y-6">
             <!-- Text area: limited to max-w-3xl (~768px) for optimal typography reading measure -->
             <div class="max-w-3xl space-y-3">
                 <h2 class="text-3xl sm:text-4xl lg:text-5xl font-serif font-extrabold leading-tight tracking-tight group-hover:text-primary-light transition-colors drop-shadow-md">

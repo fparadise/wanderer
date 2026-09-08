@@ -241,7 +241,7 @@
 
 <nav
     class="flex justify-between items-center p-6 {page.url.pathname === '/'
-        ? 'sticky top-0 z-10 bg-background'
+        ? 'sticky top-0 z-40 bg-background/95 backdrop-blur-xs border-b border-input-border/40'
         : ''}"
 >
     <a href="/">
