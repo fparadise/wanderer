@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Article } from "$lib/models/article";
     import type { Trail } from "$lib/models/trail";
+    import type { Tag } from "$lib/models/tag";
     import { currentUser } from "$lib/stores/user_store";
     import { RADIUS } from "$lib/config/design_system";
     import ArticleCard from "$lib/components/article/article_card.svelte";
@@ -13,6 +14,7 @@
             recentTrails?: Trail[];
             totalTrailsCount?: number;
             registeredUsersCount?: number;
+            editorialTags?: Tag[];
         };
     }
 
@@ -27,6 +29,7 @@
     let recentTrails = $derived(data.recentTrails || []);
     let totalTrailsCount = $derived(data.totalTrailsCount ?? (recentTrails.length || 0));
     let registeredUsersCount = $derived(data.registeredUsersCount ?? 0);
+    let editorialTags = $derived(data.editorialTags || []);
 
     let selectedTagFilter: string | null = $state(null);
 
@@ -41,6 +44,16 @@
         const set = new Set<string>();
         articles.forEach((a) => (a.tags || []).forEach((t) => set.add(t)));
         return Array.from(set);
+    });
+
+    // Prioritize editorial tags that are used on articles, then fallback to other article tags
+    let displayFilterTags = $derived.by(() => {
+        const articleTagsSet = new Set(allArticleTags);
+        const matchedEditorial = editorialTags
+            .map((t) => t.name)
+            .filter((name) => articleTagsSet.has(name));
+        const others = allArticleTags.filter((t) => !matchedEditorial.includes(t));
+        return [...matchedEditorial, ...others].slice(0, 8);
     });
 </script>
 
@@ -82,7 +95,7 @@
             </div>
 
             <!-- Tag Filter Pills -->
-            {#if allArticleTags.length > 0}
+            {#if displayFilterTags.length > 0}
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                     <button
                         type="button"
@@ -91,13 +104,13 @@
                     >
                         Tous les récits
                     </button>
-                    {#each allArticleTags.slice(0, 6) as tag}
+                    {#each displayFilterTags as tag}
                         <button
                             type="button"
                             onclick={() => { selectedTagFilter = selectedTagFilter === tag ? null : tag; }}
                             class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0 {selectedTagFilter === tag ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background text-content/70 hover:text-content border-input-border'}"
                         >
-                            #{tag}
+                            {tag}
                         </button>
                     {/each}
                 </div>

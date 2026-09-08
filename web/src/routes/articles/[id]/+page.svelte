@@ -100,22 +100,51 @@
         photoId: string;
         marker: M.Marker;
         element: HTMLElement;
-        popup: M.Popup;
+        popup?: M.Popup;
     }
 
     let map: M.Map | undefined = $state();
     let isMapFullscreen = $state(false);
+    let isMapDrawerOpen = $state(false);
+    let activeKmInfo = $state<string | null>(null);
+    let showFloatingFab = $state(false);
+    let mapAnchorEl: HTMLElement | null = $state(null);
 
     function toggleFullscreen() {
         isMapFullscreen = !isMapFullscreen;
         setTimeout(() => {
             map?.resize();
-        }, 60);
+        }, 80);
+    }
+
+    function openDrawer(infoLabel?: string) {
+        if (infoLabel) activeKmInfo = infoLabel;
+        isMapDrawerOpen = true;
+        setTimeout(() => {
+            map?.resize();
+        }, 80);
+        setTimeout(() => {
+            map?.resize();
+        }, 320);
+    }
+
+    function closeDrawer() {
+        isMapDrawerOpen = false;
+        setTimeout(() => {
+            map?.resize();
+        }, 80);
+        setTimeout(() => {
+            map?.resize();
+        }, 320);
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-        if (e.key === "Escape" && isMapFullscreen) {
-            toggleFullscreen();
+        if (e.key === "Escape") {
+            if (isMapFullscreen) {
+                toggleFullscreen();
+            } else if (isMapDrawerOpen) {
+                closeDrawer();
+            }
         }
     }
 
@@ -308,20 +337,34 @@
                 let matchedLon: number | undefined;
                 let matchedKm: number | undefined;
 
-                if (exif.lat !== undefined && exif.lon !== undefined) {
+                const TOLERANCE_METERS = 200; // Distance max pour considérer la coordonnée sur la trace
+
+                // 1. Vérifier si les coordonnées GPS sont sur la trace dans la tolérance
+                const coordMatch = (exif.lat !== undefined && exif.lon !== undefined && points.length > 0)
+                    ? findKmForCoordinate(points, exif.lat, exif.lon, TOLERANCE_METERS)
+                    : null;
+
+                // 2. Vérifier si le timestamp correspond à un point de la trace GPX
+                const timeMatch = (exif.timestamp !== undefined && points.length > 0)
+                    ? findPointForTimestamp(points, exif.timestamp)
+                    : null;
+
+                if (coordMatch) {
+                    // Les coordonnées GPS sont sur la trace (dans la tolérance) -> on cale sur le point de trace
+                    matchedLat = coordMatch.point.lat;
+                    matchedLon = coordMatch.point.lon;
+                    matchedKm = coordMatch.km;
+                } else if (timeMatch) {
+                    // Les coordonnées GPS sont hors trace (ou absentes), mais le timestamp correspond à la trace !
+                    matchedLat = timeMatch.lat;
+                    matchedLon = timeMatch.lon;
+                    matchedKm = timeMatch.km;
+                } else if (exif.lat !== undefined && exif.lon !== undefined) {
+                    // Coordonnées GPS hors trace et pas de timestamp correspondant -> on garde le GPS brut
                     matchedLat = exif.lat;
                     matchedLon = exif.lon;
-                    if (points.length > 0) {
-                        const match = findKmForCoordinate(points, exif.lat, exif.lon);
-                        if (match) matchedKm = match.km;
-                    }
-                } else if (exif.timestamp !== undefined && points.length > 0) {
-                    const match = findPointForTimestamp(points, exif.timestamp);
-                    if (match) {
-                        matchedLat = match.lat;
-                        matchedLon = match.lon;
-                        matchedKm = match.km;
-                    }
+                    const fallbackMatch = findKmForCoordinate(points, exif.lat, exif.lon, 2000);
+                    if (fallbackMatch) matchedKm = fallbackMatch.km;
                 }
 
                 if (matchedLat !== undefined && matchedLon !== undefined) {
@@ -355,64 +398,69 @@
             return;
         }
 
-        map.flyTo({
-            center: [coord.lon, coord.lat],
-            zoom: 14,
-            speed: 1.2,
-        });
+        const stagePrefix = linkedTrails.length > 1 ? `Étape ${stage} · ` : "";
+        const kmLabel = `${stagePrefix}KM ${km}${label ? ` · ${label}` : ''}`;
 
-        // Close any other open popups and restore markers
-        pkMapItems.forEach((item) => {
-            if (item.popup.isOpen()) {
-                item.popup.remove();
-            }
-            item.element.style.opacity = "1";
-            item.element.style.visibility = "visible";
-            item.element.style.pointerEvents = "auto";
-        });
-        photoMapItems.forEach((item) => {
-            if (item.popup.isOpen()) {
-                item.popup.remove();
-            }
-            item.element.style.opacity = "1";
-            item.element.style.visibility = "visible";
-            item.element.style.pointerEvents = "auto";
-        });
+        // Auto-open drawer when interacting with text tags
+        openDrawer(kmLabel);
 
-        // Find existing marker on map
-        const existing = pkMapItems.find((item) => item.stage === stage && Math.abs(item.km - km) < 0.1);
-        if (existing) {
-            if (!existing.popup.isOpen()) {
-                existing.marker.togglePopup();
-            }
-            // Explicitly hide marker when its popup description is shown
-            existing.element.style.opacity = "0";
-            existing.element.style.visibility = "hidden";
-            existing.element.style.pointerEvents = "none";
-        } else {
-            const stageColor = TRAIL_COLORS[stageIdx % TRAIL_COLORS.length];
-            const stageLabel = linkedTrails.length > 1 ? `Étape ${stage}` : "";
-            new M.Popup({ offset: 10, closeButton: true })
-                .setLngLat([coord.lon, coord.lat])
-                .setHTML(`
-                    <div class="p-1.5 space-y-1.5 max-w-[250px]">
-                        <div class="font-bold text-xs flex items-center gap-1.5" style="color: ${stageColor}">
-                            <i class="fa-solid fa-location-dot"></i>
-                            <span>${stageLabel ? stageLabel + ' · ' : ''}KM ${km}</span>
+        const executeFly = () => {
+            map?.flyTo({
+                center: [coord.lon, coord.lat],
+                zoom: 14,
+                speed: 1.2,
+            });
+
+            // Close any other open popups and restore markers
+            pkMapItems.forEach((item) => {
+                if (item.popup.isOpen()) {
+                    item.popup.remove();
+                }
+                item.element.style.opacity = "1";
+                item.element.style.visibility = "visible";
+                item.element.style.pointerEvents = "auto";
+            });
+            photoMapItems.forEach((item) => {
+                if (item.popup?.isOpen()) {
+                    item.popup.remove();
+                }
+                item.element.style.opacity = "1";
+                item.element.style.visibility = "visible";
+                item.element.style.pointerEvents = "auto";
+            });
+
+            // Find existing marker on map
+            const existing = pkMapItems.find((item) => item.stage === stage && Math.abs(item.km - km) < 0.1);
+            if (existing) {
+                if (!existing.popup.isOpen()) {
+                    existing.marker.togglePopup();
+                }
+                // Explicitly hide marker when its popup description is shown
+                existing.element.style.opacity = "0";
+                existing.element.style.visibility = "hidden";
+                existing.element.style.pointerEvents = "none";
+            } else {
+                const stageColor = TRAIL_COLORS[stageIdx % TRAIL_COLORS.length];
+                const stageLabel = linkedTrails.length > 1 ? `Étape ${stage}` : "";
+                new M.Popup({ offset: 10, closeButton: true })
+                    .setLngLat([coord.lon, coord.lat])
+                    .setHTML(`
+                        <div class="p-1.5 space-y-1.5 max-w-[250px]">
+                            <div class="font-bold text-xs flex items-center gap-1.5" style="color: ${stageColor}">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span>${stageLabel ? stageLabel + ' · ' : ''}KM ${km}</span>
+                            </div>
+                            ${label ? `<p class="text-xs font-semibold text-content">${label}</p>` : ''}
                         </div>
-                        ${label ? `<p class="text-xs font-semibold text-content">${label}</p>` : ''}
-                    </div>
-                `)
-                .addTo(map);
-        }
-
-        // Scroll to map smoothly if below viewport
-        const mapEl = document.getElementById("article-trail-map");
-        if (mapEl) {
-            const rect = mapEl.getBoundingClientRect();
-            if (rect.top < 0 || rect.bottom > window.innerHeight) {
-                mapEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                    `)
+                    .addTo(map!);
             }
+        };
+
+        if (isMapDrawerOpen) {
+            executeFly();
+        } else {
+            setTimeout(executeFly, 150);
         }
     }
 
@@ -487,7 +535,7 @@
                 item.element.style.display = "";
             } else {
                 item.element.style.display = "none";
-                if (item.popup.isOpen()) {
+                if (item.popup?.isOpen()) {
                     item.popup.remove();
                 }
             }
@@ -501,52 +549,37 @@
             if (!showPhotosOnMap) {
                 togglePhotosOnMap();
             }
-            map.flyTo({ center: [photo.lon, photo.lat], zoom: 15, speed: 1.2 });
 
-            // Close all popups and restore markers
-            pkMapItems.forEach((item) => {
-                if (item.popup.isOpen()) item.popup.remove();
-                item.element.style.opacity = "1";
-                item.element.style.visibility = "visible";
-                item.element.style.pointerEvents = "auto";
-            });
-            photoMapItems.forEach((item) => {
-                if (item.popup.isOpen()) item.popup.remove();
-                item.element.style.opacity = "1";
-                item.element.style.visibility = "visible";
-                item.element.style.pointerEvents = "auto";
-            });
+            const photoLabel = `${photo.stageLabel}${photo.pkKm !== undefined ? ` · KM ${photo.pkKm.toFixed(1)}` : ''}${photo.caption ? ` · ${photo.caption}` : ''}`;
+            openDrawer(photoLabel);
 
-            const existing = photoMapItems.find((item) => item.photoId === photo.id);
-            if (existing) {
-                if (!existing.popup.isOpen()) {
-                    existing.marker.togglePopup();
+            const targetLon = photo.lon;
+            const targetLat = photo.lat;
+            const executeFly = () => {
+                map?.flyTo({ center: [targetLon, targetLat], zoom: 15, speed: 1.2 });
+
+                // Close all popups and restore markers
+                pkMapItems.forEach((item) => {
+                    if (item.popup.isOpen()) item.popup.remove();
+                    item.element.style.opacity = "1";
+                    item.element.style.visibility = "visible";
+                    item.element.style.pointerEvents = "auto";
+                });
+
+                const existing = photoMapItems.find((item) => item.photoId === photo.id);
+                if (existing) {
+                    existing.element.classList.add("ring-4", "ring-primary", "scale-125");
+                    setTimeout(() => {
+                        existing.element.classList.remove("ring-4", "ring-primary", "scale-125");
+                    }, 2500);
                 }
-                existing.element.style.opacity = "0";
-                existing.element.style.visibility = "hidden";
-                existing.element.style.pointerEvents = "none";
-            } else {
-                const stageColor = TRAIL_COLORS[photo.stageIndex % TRAIL_COLORS.length];
-                new M.Popup({ offset: 12, closeButton: true })
-                    .setLngLat([photo.lon, photo.lat])
-                    .setHTML(`
-                        <div class="p-1.5 space-y-2 max-w-[280px]">
-                            <div class="aspect-4/3 w-full rounded-xl overflow-hidden bg-neutral-900 shadow-inner">
-                                <img src="${photo.url}" alt="${photo.caption || ''}" class="w-full h-full object-cover" />
-                            </div>
-                            <div class="space-y-0.5">
-                                <div class="font-bold text-xs flex items-center gap-1.5" style="color: ${stageColor}">
-                                    <i class="fa-solid fa-camera"></i>
-                                    <span>${photo.stageLabel || ''}${photo.pkKm !== undefined ? ` · KM ${photo.pkKm.toFixed(1)}` : ''}</span>
-                                </div>
-                                ${photo.caption ? `<p class="text-xs font-semibold text-content line-clamp-2">${photo.caption}</p>` : ''}
-                            </div>
-                        </div>
-                    `)
-                    .addTo(map);
-            }
+            };
 
-            document.getElementById("article-trail-map")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (isMapDrawerOpen) {
+                executeFly();
+            } else {
+                setTimeout(executeFly, 150);
+            }
         } else if (photo.pkKm !== undefined) {
             focusKmOnMap(photo.stageIndex + 1, photo.pkKm, photo.caption);
         }
@@ -770,104 +803,23 @@
             markerEl.addEventListener("pointerdown", (e) => e.stopPropagation());
             markerEl.addEventListener("pointermove", (e) => e.stopPropagation());
 
-            const popupContent = document.createElement("div");
-            popupContent.className = "p-2 space-y-2 max-w-[340px] sm:max-w-[420px]";
-
-            if (count === 1) {
-                popupContent.innerHTML = `
-                    <div class="w-full max-h-[360px] flex items-center justify-center rounded-xl overflow-hidden bg-black/5 dark:bg-black/40 shadow-inner">
-                        <img src="${coverPhoto.url}" alt="${coverPhoto.caption || ''}" class="max-h-[340px] max-w-full w-auto h-auto object-contain rounded-lg shadow-xs" />
-                    </div>
-                    <div class="space-y-0.5 pt-0.5">
-                        <div class="font-bold text-xs flex items-center gap-1.5" style="color: ${stageColor}">
-                            <i class="fa-solid fa-camera"></i>
-                            <span>${group.stageLabel || ''}${group.pkKm !== undefined ? ` · KM ${group.pkKm.toFixed(1)}` : ''}</span>
-                        </div>
-                        ${coverPhoto.caption ? `<p class="text-xs font-semibold text-content">${coverPhoto.caption}</p>` : ''}
-                    </div>
-                `;
-            } else {
-                const mainImgId = `popup-main-img-${coverPhoto.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-                const captionId = `popup-caption-${coverPhoto.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-
-                const thumbsHtml = group.photos.map((p, idx) => `
-                    <button type="button" class="photo-thumb-btn w-12 h-12 shrink-0 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${idx === 0 ? 'border-primary ring-2 ring-primary/40' : 'border-transparent opacity-75 hover:opacity-100'}" data-url="${p.url}" data-caption="${p.caption || ''}">
-                        <img src="${p.url}" alt="" class="w-full h-full object-cover" />
-                    </button>
-                `).join("");
-
-                popupContent.innerHTML = `
-                    <div class="w-full max-h-[320px] flex items-center justify-center rounded-xl overflow-hidden bg-black/5 dark:bg-black/40 shadow-inner">
-                        <img id="${mainImgId}" src="${coverPhoto.url}" alt="${coverPhoto.caption || ''}" class="max-h-[300px] max-w-full w-auto h-auto object-contain rounded-lg shadow-xs transition-all duration-150" />
-                    </div>
-                    <div class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-thin">
-                        ${thumbsHtml}
-                    </div>
-                    <div class="space-y-0.5 pt-1 border-t border-input-border">
-                        <div class="font-bold text-xs flex items-center justify-between gap-1.5" style="color: ${stageColor}">
-                            <div class="flex items-center gap-1.5">
-                                <i class="fa-solid fa-camera"></i>
-                                <span>${group.stageLabel || ''}${group.pkKm !== undefined ? ` · KM ${group.pkKm.toFixed(1)}` : ''}</span>
-                            </div>
-                            <span class="text-[10px] text-content/70 font-normal">${count} photos</span>
-                        </div>
-                        <p id="${captionId}" class="text-xs font-medium text-content">${coverPhoto.caption || ''}</p>
-                    </div>
-                `;
-
-                popupContent.querySelectorAll(".photo-thumb-btn").forEach((btn) => {
-                    btn.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        const url = btn.getAttribute("data-url");
-                        const caption = btn.getAttribute("data-caption");
-                        const mainImg = popupContent.querySelector(`#${mainImgId}`) as HTMLImageElement;
-                        const captionEl = popupContent.querySelector(`#${captionId}`) as HTMLElement;
-                        if (mainImg && url) mainImg.src = url;
-                        if (captionEl) captionEl.textContent = caption || "";
-                        popupContent.querySelectorAll(".photo-thumb-btn").forEach((b) => {
-                            b.classList.remove("border-primary", "ring-2", "ring-primary/40");
-                            b.classList.add("border-transparent", "opacity-75");
-                        });
-                        btn.classList.add("border-primary", "ring-2", "ring-primary/40");
-                        btn.classList.remove("border-transparent", "opacity-75");
-                    });
-                });
-            }
-
-            const popup = new M.Popup({ offset: 12, closeButton: true, maxWidth: "440px" }).setDOMContent(popupContent);
-
-            // Hide the photo marker when its popup is open, restore when closed
-            popup.on("open", () => {
-                markerEl.style.opacity = "0";
-                markerEl.style.visibility = "hidden";
-                markerEl.style.pointerEvents = "none";
-            });
-            popup.on("close", () => {
-                markerEl.style.opacity = "1";
-                markerEl.style.visibility = "visible";
-                markerEl.style.pointerEvents = "auto";
-            });
-
             markerEl.addEventListener("click", (e) => {
                 e.stopPropagation();
                 // Close other open popups
                 pkMapItems.forEach((item) => {
                     if (item.popup.isOpen()) item.popup.remove();
                 });
-                photoMapItems.forEach((item) => {
-                    if (item.marker !== marker && item.popup.isOpen()) {
-                        item.popup.remove();
-                    }
-                });
-                marker.togglePopup();
+                const photoIdx = aggregatedPhotos.findIndex((p) => p.id === coverPhoto.id);
+                if (photoIdx !== -1) {
+                    gallery?.openGallery(photoIdx);
+                }
             });
 
             const marker = new M.Marker({ element: markerEl, anchor: "center" })
                 .setLngLat([group.lon, group.lat])
-                .setPopup(popup)
                 .addTo(map!);
 
-            photoMapItems.push({ photoId: coverPhoto.id, marker, element: markerEl, popup });
+            photoMapItems.push({ photoId: coverPhoto.id, marker, element: markerEl });
         });
     }
 
@@ -929,6 +881,19 @@
         }
     });
 
+    $effect(() => {
+        if (typeof window === "undefined" || !mapAnchorEl) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                const isPast = entry.boundingClientRect.bottom < 0;
+                showFloatingFab = isPast && !entry.isIntersecting;
+            },
+            { threshold: 0 }
+        );
+        observer.observe(mapAnchorEl);
+        return () => observer.disconnect();
+    });
+
     onDestroy(() => {
         if (photoToggleControl && map) {
             try {
@@ -949,7 +914,7 @@
     <title>{article.title} | Magazine Wanderer</title>
 </svelte:head>
 
-<article class="min-h-screen pb-20">
+<article class="min-h-screen pb-20 transition-[padding] duration-300 {isMapDrawerOpen && !isMapFullscreen ? 'lg:pr-[460px] xl:pr-[520px] 2xl:pr-[580px]' : ''}">
     <!-- Hero Cover Section -->
     {#if mainHeroImage}
         <div class="relative w-full h-[65vh] min-h-[480px] max-h-[750px] overflow-hidden bg-neutral-900">
@@ -1075,7 +1040,7 @@
             <div class="flex flex-wrap items-center gap-2 pt-2">
                 {#each tags as tag}
                     <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 shadow-2xs">
-                        #{tag}
+                        {tag}
                     </span>
                 {/each}
             </div>
@@ -1093,33 +1058,95 @@
 
         <!-- Interactive Map of Linked Trails -->
         {#if linkedTrails.length > 0}
-            <div class="space-y-4">
+            <div bind:this={mapAnchorEl} id="article-map-anchor" class="space-y-4">
+                {#if isMapDrawerOpen && !isMapFullscreen}
+                    <!-- Placeholder in page when map is active in drawer -->
+                    <div class="w-full h-[180px] md:h-[220px] rounded-2xl border-2 border-dashed border-input-border/70 bg-input-background/25 flex flex-col items-center justify-center p-6 text-center space-y-3 transition-all">
+                        <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-base">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <p class="text-xs md:text-sm font-bold text-content">La carte est ouverte dans le volet latéral</p>
+                            <p class="text-[11px] md:text-xs text-content/60">Vous pouvez continuer à lire le récit tout en explorant la trace.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onclick={closeDrawer}
+                            class="btn-secondary text-xs py-1.5 px-3 rounded-xl flex items-center gap-2 cursor-pointer hover:border-primary/60 transition-colors"
+                        >
+                            <i class="fa-solid fa-arrow-down-left-and-up-right-to-center text-[10px]"></i>
+                            Replacer la carte ici
+                        </button>
+                    </div>
+                {/if}
+
+                <!-- Persistent Map Container (Inline, Drawer, or Fullscreen) -->
                 <div
                     id="article-trail-map"
                     class="{isMapFullscreen
-                        ? 'fixed inset-0 z-50 w-screen h-screen rounded-none bg-background'
-                        : 'w-full h-[520px] rounded-2xl overflow-hidden border shadow-sm relative'}"
+                        ? 'fixed inset-0 z-50 w-screen h-screen rounded-none bg-background flex flex-col'
+                        : isMapDrawerOpen
+                        ? 'fixed inset-x-0 bottom-0 top-[18vh] lg:top-0 lg:bottom-0 lg:left-auto lg:right-0 lg:w-[460px] xl:w-[520px] 2xl:w-[580px] z-40 bg-background border-t lg:border-t-0 lg:border-l border-input-border shadow-2xl rounded-t-3xl lg:rounded-none flex flex-col overflow-hidden transition-all duration-300'
+                        : 'w-full h-[520px] rounded-2xl overflow-hidden border shadow-sm relative flex flex-col'}"
                 >
+                    <!-- Drawer Header (visible only in drawer mode) -->
+                    {#if isMapDrawerOpen && !isMapFullscreen}
+                        <div class="flex items-center justify-between px-4 py-2.5 bg-background/95 backdrop-blur-sm border-b border-input-border shrink-0 z-10">
+                            <!-- Mobile drag handle pill -->
+                            <div class="lg:hidden absolute top-1.5 inset-x-0 flex justify-center pointer-events-none">
+                                <span class="w-10 h-1 rounded-full bg-input-border"></span>
+                            </div>
+
+                            <div class="flex items-center gap-2 min-w-0 pt-1 lg:pt-0">
+                                <span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"></span>
+                                <span class="text-xs font-bold text-content truncate">
+                                    {activeKmInfo || "Carte de l'itinéraire"}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0 pt-1 lg:pt-0">
+                                <button
+                                    type="button"
+                                    onclick={toggleFullscreen}
+                                    class="w-7 h-7 rounded-lg hover:bg-input-background text-content/70 hover:text-content flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                    title="Plein écran"
+                                >
+                                    <i class="fa-solid fa-expand"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick={closeDrawer}
+                                    class="w-7 h-7 rounded-lg hover:bg-input-background text-content/70 hover:text-content flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                    title="Fermer le volet et replacer la carte"
+                                >
+                                    <i class="fa-solid fa-xmark text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {/if}
+
                     {#if isMapFullscreen}
                         <button
                             type="button"
                             onclick={toggleFullscreen}
-                            class="absolute top-4 left-4 z-20 px-3.5 py-2 rounded-xl bg-background/90 backdrop-blur-sm border border-input-border text-content shadow-lg text-xs font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-2"
+                            class="absolute top-4 left-4 z-20 px-3.5 py-2 rounded-xl bg-background/90 backdrop-blur-sm border border-input-border text-content shadow-lg text-xs font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-2 cursor-pointer"
                         >
                             <i class="fa-solid fa-compress"></i>
                             Quitter le plein écran
                         </button>
                     {/if}
 
-                    <MapWithElevationMaplibre
-                        bind:map
-                        trails={linkedTrails}
-                        showElevation={true}
-                        showFullscreen={true}
-                        onfullscreen={toggleFullscreen}
-                        showStyleSwitcher={true}
-                        fitAllTrails={true}
-                    />
+                    <!-- Map Canvas Body -->
+                    <div class="flex-1 w-full h-full min-h-0 relative">
+                        <MapWithElevationMaplibre
+                            bind:map
+                            trails={linkedTrails}
+                            showElevation={true}
+                            showFullscreen={!isMapDrawerOpen}
+                            onfullscreen={toggleFullscreen}
+                            showStyleSwitcher={true}
+                            fitAllTrails={true}
+                        />
+                    </div>
                 </div>
 
                 <!-- Simple list of cards linking to each route / trail page -->
@@ -1218,21 +1245,6 @@
                                 {/if}
                             </div>
 
-                            <!-- Top Right: Focus on Map button if geotagged -->
-                            {#if photo.lat !== undefined && photo.lon !== undefined}
-                                <button
-                                    type="button"
-                                    onclick={(e) => {
-                                        e.stopPropagation();
-                                        focusPhotoOnMap(photo);
-                                    }}
-                                    title="Localiser sur la carte"
-                                    class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black/65 hover:bg-primary text-white flex items-center justify-center text-[11px] shadow-sm transition-all hover:scale-110 cursor-pointer"
-                                >
-                                    <i class="fa-solid fa-map-pin"></i>
-                                </button>
-                            {/if}
-
                             <!-- Bottom caption & actions on hover -->
                             <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between gap-2">
                                 <div class="min-w-0 flex-1">
@@ -1263,6 +1275,31 @@
             </div>
         {/if}
     </div>
+
+    <!-- Mobile Backdrop for Drawer -->
+    {#if isMapDrawerOpen && !isMapFullscreen}
+        <div
+            class="fixed inset-0 bg-black/50 backdrop-blur-xs z-30 lg:hidden transition-opacity"
+            onclick={closeDrawer}
+            role="presentation"
+        ></div>
+    {/if}
+
+    <!-- Floating Bubble (FAB) when scrolled past map -->
+    {#if showFloatingFab && !isMapDrawerOpen && !isMapFullscreen}
+        <button
+            type="button"
+            onclick={() => openDrawer()}
+            class="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 px-4 py-3 rounded-full bg-primary text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border-2 border-white/20"
+            title="Ouvrir la carte de l'itinéraire"
+        >
+            <i class="fa-solid fa-map text-sm"></i>
+            <span class="text-xs font-bold tracking-wide">Carte</span>
+            {#if activeKmInfo}
+                <span class="bg-black/25 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">{activeKmInfo}</span>
+            {/if}
+        </button>
+    {/if}
 </article>
 
 <style>

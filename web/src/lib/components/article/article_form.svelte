@@ -18,6 +18,8 @@
         extractBaseFileName,
         deduplicateGroupPhotos,
     } from "$lib/models/article_media";
+    import { editorial_tags_index, tags_index, tags_ensure } from "$lib/stores/tag_store";
+    import type { Tag } from "$lib/models/tag";
     import { onMount } from "svelte";
 
     interface Props {
@@ -48,6 +50,18 @@
         initialArticle?.tags ? [...initialArticle.tags] : []
     );
     let customTagInput: string = $state("");
+    let dbEditorialTags: Tag[] = $state([]);
+    let tagSuggestions: Tag[] = $state([]);
+    let showTagSuggestions: boolean = $state(false);
+    let tagSearchLoading: boolean = $state(false);
+    let tagSearchTimer: any = null;
+
+    let customEditorialTags = $derived.by(() => {
+        const allCategoryTagNames = new Set(
+            EDITORIAL_TAG_CATEGORIES.flatMap((c) => c.tags.map((t) => t.toLowerCase()))
+        );
+        return dbEditorialTags.filter((t) => !allCategoryTagNames.has(t.name.toLowerCase()));
+    });
 
     let selectedTrailIds: string[] = $state(
         initialArticle?.relation ? [...initialArticle.relation] : []
@@ -75,10 +89,13 @@
     let editorComponent: any = $state();
     let draggedPhotoIdx: number | null = $state(null);
 
-    onMount(() => {
+    onMount(async () => {
         if (loadedTrails.length > 0) {
             extractActivityPhotos(loadedTrails);
         }
+        try {
+            dbEditorialTags = await editorial_tags_index();
+        } catch {}
     });
 
     async function handleTrailsChange(selectedTrails: Trail[]) {
@@ -302,13 +319,50 @@
         }
     }
 
-    function addCustomTag() {
-        const trimmed = customTagInput.trim();
-        if (!trimmed) return;
-        if (!selectedTags.includes(trimmed)) {
+    function handleTagInput() {
+        const q = customTagInput.trim();
+        clearTimeout(tagSearchTimer);
+        if (!q) {
+            tagSuggestions = [];
+            showTagSuggestions = false;
+            return;
+        }
+        tagSearchTimer = setTimeout(async () => {
+            tagSearchLoading = true;
+            try {
+                const res = await tags_index(q);
+                tagSuggestions = (res.items || []).filter(
+                    (t) => !selectedTags.some((st) => st.toLowerCase() === t.name.toLowerCase())
+                );
+                showTagSuggestions = tagSuggestions.length > 0;
+            } catch {
+                tagSuggestions = [];
+                showTagSuggestions = false;
+            } finally {
+                tagSearchLoading = false;
+            }
+        }, 200);
+    }
+
+    function selectSuggestion(tagName: string) {
+        const trimmed = tagName.trim();
+        if (trimmed && !selectedTags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
             selectedTags = [...selectedTags, trimmed];
         }
         customTagInput = "";
+        tagSuggestions = [];
+        showTagSuggestions = false;
+    }
+
+    function addCustomTag() {
+        const trimmed = customTagInput.trim();
+        if (!trimmed) return;
+        if (!selectedTags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+            selectedTags = [...selectedTags, trimmed];
+        }
+        customTagInput = "";
+        tagSuggestions = [];
+        showTagSuggestions = false;
     }
 
     function removeTag(tag: string) {
@@ -325,6 +379,11 @@
 
         submitting = true;
         try {
+            // Ensure all selected tags exist in Wanderer's central tags collection
+            if (selectedTags.length > 0) {
+                await tags_ensure(selectedTags);
+            }
+
             await onsubmit(
                 {
                     title,
@@ -676,12 +735,12 @@
                     </div>
                 </div>
 
-                <!-- Active tags badges -->
+                <!-- Active tags badges (No hashtag) -->
                 {#if selectedTags.length > 0}
                     <div class="flex flex-wrap gap-1.5 p-3 bg-background border border-input-border rounded-xl">
                         {#each selectedTags as tag}
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                                #{tag}
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/25 shadow-2xs">
+                                <span>{tag}</span>
                                 <button
                                     type="button"
                                     onclick={() => removeTag(tag)}
@@ -695,12 +754,81 @@
                     </div>
                 {/if}
 
-                <!-- Preset Categories -->
-                <div class="space-y-3">
+                <!-- Autocomplete & Custom Tag Input -->
+                <div class="relative space-y-1.5 pt-1">
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-content/70">
+                        Ajouter ou rechercher un tag
+                    </label>
+                    <div class="relative flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <input
+                                type="text"
+                                bind:value={customTagInput}
+                                oninput={handleTagInput}
+                                onfocus={() => { if (tagSuggestions.length > 0) showTagSuggestions = true; }}
+                                onkeydown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (showTagSuggestions && tagSuggestions.length > 0) {
+                                            selectSuggestion(tagSuggestions[0].name);
+                                        } else {
+                                            addCustomTag();
+                                        }
+                                    } else if (e.key === 'Escape') {
+                                        showTagSuggestions = false;
+                                    }
+                                }}
+                                placeholder="Rechercher ou créer un tag (ex: Gravel, Bivouac, Dolomites)..."
+                                class="w-full px-3.5 py-2 text-xs rounded-xl border border-input-border bg-background text-content focus:ring-1 focus:ring-primary focus:outline-hidden pr-8"
+                            />
+                            {#if tagSearchLoading}
+                                <div class="absolute right-2.5 top-1/2 -translate-y-1/2 text-content/40 text-xs">
+                                    <i class="fa-solid fa-spinner fa-spin"></i>
+                                </div>
+                            {/if}
+                        </div>
+                        <button
+                            type="button"
+                            onclick={addCustomTag}
+                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-background hover:bg-input-background border border-input-border transition-colors text-content shrink-0"
+                        >
+                            Ajouter
+                        </button>
+                    </div>
+
+                    <!-- Dropdown suggestions from Wanderer tags database -->
+                    {#if showTagSuggestions && tagSuggestions.length > 0}
+                        <div class="absolute left-0 right-16 top-full mt-1 z-30 bg-surface border border-input-border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                            {#each tagSuggestions as suggestion}
+                                <button
+                                    type="button"
+                                    onclick={() => selectSuggestion(suggestion.name)}
+                                    class="w-full text-left px-3.5 py-2 text-xs hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-between border-b border-input-border/50 last:border-0"
+                                >
+                                    <span class="font-medium text-content">{suggestion.name}</span>
+                                    {#if suggestion.editorial}
+                                        <span class="text-[10px] uppercase font-bold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10">Éditorial</span>
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Preset Categories (Editorial tags) -->
+                <div class="space-y-3 pt-2 border-t border-input-border">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-content/70">
+                            Tags éditoriaux recommandés
+                        </span>
+                        <span class="text-[11px] text-content/50">Cliquer pour activer/désactiver</span>
+                    </div>
+
                     {#each EDITORIAL_TAG_CATEGORIES as category}
                         <div class="space-y-1.5">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-content/70">
-                                {category.label}
+                            <span class="text-[11px] font-bold text-content/70 flex items-center gap-1.5">
+                                <i class="fa-solid fa-{category.icon} text-[10px] text-primary"></i>
+                                <span>{category.label}</span>
                             </span>
                             <div class="flex flex-wrap gap-1.5">
                                 {#each category.tags as tag}
@@ -710,30 +838,34 @@
                                         onclick={() => toggleTag(tag)}
                                         class="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-150 {isSelected ? 'bg-primary text-white border-primary shadow-2xs font-semibold' : 'bg-background hover:bg-input-background hover:border-primary/50 text-content border-input-border'}"
                                     >
-                                        #{tag}
+                                        {tag}
                                     </button>
                                 {/each}
                             </div>
                         </div>
                     {/each}
-                </div>
 
-                <!-- Custom tag input -->
-                <div class="flex items-center gap-2 pt-2 border-t border-input-border">
-                    <input
-                        type="text"
-                        bind:value={customTagInput}
-                        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
-                        placeholder="Ajouter un tag personnalisé (ex: coucher-de-soleil)..."
-                        class="flex-1 px-3 py-2 text-xs rounded-xl border border-input-border bg-background text-content focus:ring-1 focus:ring-primary focus:outline-hidden"
-                    />
-                    <button
-                        type="button"
-                        onclick={addCustomTag}
-                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-background hover:bg-input-background border border-input-border transition-colors text-content"
-                    >
-                        Ajouter
-                    </button>
+                    <!-- Dynamic extra editorial tags added via PocketBase if any -->
+                    {#if customEditorialTags.length > 0}
+                        <div class="space-y-1.5">
+                            <span class="text-[11px] font-bold text-content/70 flex items-center gap-1.5">
+                                <i class="fa-solid fa-star text-[10px] text-primary"></i>
+                                <span>Autres tags éditoriaux</span>
+                            </span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {#each customEditorialTags as tag}
+                                    {@const isSelected = selectedTags.includes(tag.name)}
+                                    <button
+                                        type="button"
+                                        onclick={() => toggleTag(tag.name)}
+                                        class="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-150 {isSelected ? 'bg-primary text-white border-primary shadow-2xs font-semibold' : 'bg-background hover:bg-input-background hover:border-primary/50 text-content border-input-border'}"
+                                    >
+                                        {tag.name}
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </div>
         </div>

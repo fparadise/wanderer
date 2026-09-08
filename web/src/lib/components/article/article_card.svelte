@@ -68,7 +68,7 @@
                 {#if article.tags && article.tags.length > 0}
                     {#each article.tags.slice(0, 2) as tag}
                         <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-background/90 text-content border border-input-border backdrop-blur-xs shadow-2xs">
-                            #{tag}
+                            {tag}
                         </span>
                     {/each}
                 {/if}
@@ -192,7 +192,7 @@
                 {#if article.tags && article.tags.length > 0}
                     <div class="flex flex-wrap gap-1">
                         {#each article.tags.slice(0, 3) as tag}
-                            <span class="text-[10px] uppercase font-bold text-primary">#{tag}</span>
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-primary">{tag}</span>
                         {/each}
                     </div>
                 {/if}
