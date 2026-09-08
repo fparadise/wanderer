@@ -44,30 +44,30 @@
     <!-- Large Featured Hero Card for Magazine Front Page -->
     <a
         href="/articles/{article.id}"
-        class="group relative {RADIUS.hero} overflow-hidden border border-input-border shadow-md hover:shadow-xl transition-all duration-500 bg-neutral-950 text-white min-h-[500px] lg:min-h-[580px] flex flex-col justify-between {extraClass}"
+        class="group relative isolate {RADIUS.card} overflow-hidden border border-input-border bg-surface hover:border-primary/50 transition-all duration-300 shadow-xs hover:shadow-md min-h-[500px] lg:min-h-[580px] flex flex-col justify-between {extraClass}"
     >
-        <!-- Background Cover Image & Atmospheric Bottom Gradient -->
+        <!-- Background Cover Image & Light Atmospheric Gradient -->
         {#if coverUrl}
             <img
                 src={coverUrl}
                 alt={article.title}
-                class="absolute inset-0 w-full h-full object-cover object-center opacity-95 group-hover:scale-105 transition-transform duration-1000"
+                class="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
             />
         {:else}
-            <div class="absolute inset-0 bg-gradient-to-br from-primary/50 via-neutral-900 to-black"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-input-background"></div>
         {/if}
-        <!-- Lighter, progressive gradient anchored at the bottom to protect text readability while keeping photo bright -->
-        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 via-50% to-transparent pointer-events-none"></div>
+        <!-- Light gradient fading to background at the bottom for text contrast, and a light subtle vignette at top for badges -->
+        <div class="absolute inset-0 bg-gradient-to-t from-background via-background/80 via-45% to-black/10 pointer-events-none"></div>
 
         <!-- Top Header: Badge "À la une" + tags / stats -->
         <div class="relative z-1 w-full flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8 lg:p-10">
             <div class="flex flex-wrap items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-primary text-white shadow-md">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-primary text-white shadow-xs">
                     <i class="fa-solid fa-compass"></i> À la une
                 </span>
                 {#if article.tags && article.tags.length > 0}
                     {#each article.tags.slice(0, 2) as tag}
-                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/40 backdrop-blur-md text-white/90 border border-white/15">
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-background/90 text-content border border-input-border backdrop-blur-xs shadow-2xs">
                             #{tag}
                         </span>
                     {/each}
@@ -77,7 +77,7 @@
             {#if summaryBadges.length > 0}
                 <div class="hidden sm:flex items-center gap-2">
                     {#each summaryBadges as badge}
-                        <span class="px-3 py-1 rounded-full text-[11px] font-semibold bg-black/40 backdrop-blur-md text-white/90 border border-white/15">
+                        <span class="px-3 py-1 rounded-full text-[11px] font-semibold bg-background/90 text-content border border-input-border backdrop-blur-xs shadow-2xs">
                             {badge}
                         </span>
                     {/each}
@@ -89,21 +89,21 @@
         <div class="relative z-1 w-full p-6 sm:p-8 lg:p-10 space-y-6">
             <!-- Text area: limited to max-w-3xl (~768px) for optimal typography reading measure -->
             <div class="max-w-3xl space-y-3">
-                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-serif font-extrabold leading-tight tracking-tight group-hover:text-primary-light transition-colors drop-shadow-md">
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-serif font-extrabold leading-tight tracking-tight text-content group-hover:text-primary transition-colors">
                     {article.title}
                 </h2>
 
                 {#if article.intro}
-                    <p class="text-sm sm:text-base text-white/85 font-serif italic line-clamp-3 leading-relaxed drop-shadow-xs max-w-2xl">
+                    <p class="text-sm sm:text-base text-content/80 font-serif italic line-clamp-3 leading-relaxed max-w-2xl">
                         {article.intro}
                     </p>
                 {/if}
             </div>
 
             <!-- Full-width Bottom Bar: Author info on left, CTA on right at the bottom edge -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-white/15">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-input-border">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 shadow-md shrink-0">
+                    <div class="w-10 h-10 rounded-full overflow-hidden border border-input-border shadow-xs shrink-0 bg-input-background">
                         <img
                             src={authorAvatar}
                             alt={authorName}
@@ -111,16 +111,16 @@
                         />
                     </div>
                     <div>
-                        <p class="text-sm font-bold text-white leading-tight">
+                        <p class="text-sm font-bold text-content leading-tight group-hover:text-primary transition-colors">
                             {authorName}
                         </p>
-                        <p class="text-xs text-white/70">
+                        <p class="text-xs text-content/60">
                             {displayDate}
                         </p>
                     </div>
                 </div>
 
-                <span class="btn-primary text-xs py-2.5 px-5 rounded-full inline-flex items-center gap-2 group-hover:scale-105 transition-transform shadow-lg self-start sm:self-auto">
+                <span class="btn-primary text-xs py-2.5 px-5 rounded-full inline-flex items-center gap-2 group-hover:scale-105 transition-transform shadow-xs self-start sm:self-auto">
                     <span>Lire le récit</span>
                     <i class="fa-solid fa-arrow-right text-[10px]"></i>
                 </span>

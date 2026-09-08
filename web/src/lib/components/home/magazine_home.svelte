@@ -12,6 +12,7 @@
             articles?: Article[];
             recentTrails?: Trail[];
             totalTrailsCount?: number;
+            registeredUsersCount?: number;
         };
     }
 
@@ -25,6 +26,7 @@
     });
     let recentTrails = $derived(data.recentTrails || []);
     let totalTrailsCount = $derived(data.totalTrailsCount ?? (recentTrails.length || 0));
+    let registeredUsersCount = $derived(data.registeredUsersCount ?? 0);
 
     let selectedTagFilter: string | null = $state(null);
 
@@ -119,23 +121,18 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div class="space-y-8">
             <!-- Map Banner with Community Stats Gateway -->
-            <div class="relative overflow-hidden rounded-3xl border border-input-border bg-gradient-to-br from-primary/10 via-background to-input-background p-6 sm:p-8 lg:p-10 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <!-- Atmospheric background icon -->
-                <div class="absolute -right-8 -bottom-8 opacity-10 pointer-events-none text-content">
-                    <i class="fa-solid fa-map-location-dot text-[160px]"></i>
-                </div>
-
+            <div class="relative overflow-hidden {RADIUS.card} border border-input-border bg-gradient-to-br from-primary/5 via-background to-input-background p-6 sm:p-8 lg:p-10 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="relative z-10 max-w-xl space-y-3">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary text-white shadow-xs">
-                            <i class="fa-solid fa-compass"></i> Territoire & GPS
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-content/70">
+                        <span class="flex items-center gap-1.5 text-primary">
+                            <i class="fa-solid fa-users text-xs"></i>
+                            <span>{registeredUsersCount} {registeredUsersCount > 1 ? 'utilisateurs inscrits' : 'utilisateur inscrit'}</span>
                         </span>
-                        {#if totalTrailsCount > 0}
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-background text-content border border-input-border shadow-2xs">
-                                <i class="fa-solid fa-route text-primary"></i>
-                                {totalTrailsCount} {totalTrailsCount > 1 ? 'itinéraires répertoriés' : 'itinéraire répertorié'}
-                            </span>
-                        {/if}
+                        <span class="text-content/30">·</span>
+                        <span class="flex items-center gap-1.5 text-content/80">
+                            <i class="fa-solid fa-route text-xs text-primary"></i>
+                            <span>{totalTrailsCount} {totalTrailsCount > 1 ? 'itinéraires répertoriés' : 'itinéraire répertorié'}</span>
+                        </span>
                     </div>
 
                     <h3 class="text-2xl sm:text-3xl font-serif font-bold text-content">
