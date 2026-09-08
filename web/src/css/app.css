@@ -12,6 +12,8 @@
 @theme {
     --color-primary: rgba(var(--primary));
     --color-background: rgba(var(--background));
+    --color-surface: rgba(var(--surface));
+    --color-card: rgba(var(--surface));
     --color-background-inverse: rgba(var(--background-inverse));
     --color-content: rgba(var(--content));
     --color-content-inverse: rgba(var(--content-inverse));
@@ -31,7 +33,9 @@
     --color-footer-background: rgba(var(--footer-background));
     --color-separator: rgba(var(--separator));
 
-    --font-sans: "IBMPlexSans";
+    --font-sans: "Plus Jakarta Sans", "IBMPlexSans", system-ui, -apple-system, sans-serif;
+    --font-serif: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-brand: "Bricolage Grotesque", system-ui, sans-serif;
 
     --fa-width: auto;
 }

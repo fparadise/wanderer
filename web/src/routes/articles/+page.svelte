@@ -17,7 +17,7 @@
     <!-- Header banner -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-input-border">
         <div class="space-y-2">
-            <span class="text-xs uppercase font-bold tracking-widest text-primary">Carnets d'itinéraires</span>
+            <span class="text-xs uppercase font-bold tracking-widest text-primary">Récits & Traces</span>
             <h1 class="text-4xl sm:text-5xl font-serif font-extrabold text-content tracking-tight">
                 Le Magazine
             </h1>

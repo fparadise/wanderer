@@ -1,62 +1,64 @@
 .light {
-    --primary: 36, 39, 52;
-    --primary-hover: 17, 24, 39;
-    --secondary-hover: 243, 244, 246;
-    --secondary-hover-inverse: 36, 39, 52;
+    --primary: 37, 99, 235;
+    --primary-hover: 29, 78, 216;
+    --secondary-hover: 241, 245, 249;
+    --secondary-hover-inverse: 15, 23, 42;
 
-    --background: 255, 255, 255;
-    --background-inverse: 7, 10, 36;
+    --background: 243, 245, 249; /* #F3F5F9 Canvas ardoise clair technique */
+    --surface: 255, 255, 255;    /* #FFFFFF Cartes, modales et surfaces en blanc pur */
+    --background-inverse: 15, 23, 42;
 
-    --content: 0, 0, 0;
+    --content: 15, 23, 42;
     --content-inverse: 255, 255, 255;
 
-    --input-background: 249, 250, 251;
+    --input-background: 255, 255, 255;
     --input-background-error: 254, 242, 242;
-    --input-border: 209, 213, 219;
-    --input-border-focus: 36, 39, 52;
-    --input-ring: 148, 163, 184;
+    --input-border: 226, 232, 240;
+    --input-border-focus: 37, 99, 235;
+    --input-ring: 191, 219, 254;
 
-    --toggle-active: 36, 39, 52;
+    --toggle-active: 37, 99, 235;
 
     --menu-background: 255, 255, 255;
-    --menu-item-background-hover: 243, 244, 246;
-    --menu-item-background-focus: 229, 231, 235;
+    --menu-item-background-hover: 241, 245, 249;
+    --menu-item-background-focus: 226, 232, 240;
 
-    --footer-background: 36, 39, 52;
+    --footer-background: 15, 23, 42;
 
-    --separator: 209, 213, 219;
+    --separator: 226, 232, 240;
 
     background: rgba(var(--background));
     color: rgba(var(--content));
 }
 
 .dark {
-    --primary: 36, 39, 52;
-    --primary-hover: 55, 60, 80;
-    --secondary-hover: 55, 65, 81;
-    --secondary-hover-inverse: 243, 244, 246;
+    --primary: 59, 130, 246;
+    --primary-hover: 37, 99, 235;
+    --secondary-hover: 30, 41, 59;
+    --secondary-hover-inverse: 241, 245, 249;
 
-    --background: 18, 20, 28;
+    --background: 11, 15, 25;  /* #0B0F19 Nuit alpine profonde */
+    --surface: 20, 27, 44;     /* #141B2C Cartes et surfaces surélevées */
     --background-inverse: 255, 255, 255;
 
-    --content: 255, 255, 255;
-    --content-inverse: 0, 0, 0;
+    --content: 248, 250, 252;
+    --content-inverse: 15, 23, 42;
 
-    --input-background: 38, 40, 49;
+    --input-background: 26, 35, 56;
     --input-background-error: 76, 17, 17;
-    --input-border: 50, 54, 64;
-    --input-border-focus: 148, 163, 184;
-    --input-ring: 148, 163, 184;
+    --input-border: 51, 65, 85;
+    --input-border-focus: 96, 165, 250;
+    --input-ring: 59, 130, 246;
 
-    --toggle-active: 75, 85, 99;
+    --toggle-active: 59, 130, 246;
 
-    --menu-background: 30, 32, 40;
-    --menu-item-background-hover: 55, 65, 81;
-    --menu-item-background-focus: 75, 85, 99;
+    --menu-background: 20, 27, 44;
+    --menu-item-background-hover: 30, 41, 59;
+    --menu-item-background-focus: 51, 65, 85;
 
-    --footer-background: 24, 26, 36;
+    --footer-background: 8, 11, 19;
 
-    --separator: 55, 65, 81;
+    --separator: 30, 41, 59;
 
     background: rgba(var(--background));
     color: rgba(var(--content));

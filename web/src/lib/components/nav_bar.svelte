@@ -1,7 +1,6 @@
 <script lang="ts">
     import { afterNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
-    import LogoText from "$lib/components/logo/logo_text.svelte";
     import { theme, toggleTheme } from "$lib/stores/theme_store";
     import { currentUser, logout } from "$lib/stores/user_store";
     import { getFileURL } from "$lib/util/file_util";
@@ -11,7 +10,6 @@
     import { Tween } from "svelte/motion";
     import Drawer from "./base/drawer.svelte";
     import Dropdown from "./base/dropdown.svelte";
-    import LogoTextLight from "./logo/logo_text_light.svelte";
     import NotificationDropdown from "./notification/notification_dropdown.svelte";
     import GlobalSearchModal from "./search/global_search_modal.svelte";
     import UrlImportModal from "./settings/url_import_modal.svelte";
@@ -241,15 +239,11 @@
 
 <nav
     class="flex justify-between items-center p-6 {page.url.pathname === '/'
-        ? 'sticky top-0 z-40 bg-background/95 backdrop-blur-xs border-b border-input-border/40'
+        ? 'sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-input-border/60 shadow-2xs'
         : ''}"
 >
-    <a href="/">
-        {#if $theme == "light"}
-            <LogoText></LogoText>
-        {:else}
-            <LogoTextLight></LogoTextLight>
-        {/if}
+    <a href="/" class="text-2xl font-serif font-black tracking-tight text-content select-none hover:opacity-90 transition-opacity">
+        TraceClub
     </a>
     <menu id="nav-bar-links" class="hidden lg:flex gap-8 relative py-1 px-2">
         <div

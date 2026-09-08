@@ -131,7 +131,7 @@
     <!-- Compact Horizontal Card (e.g. for sidebars or search results) -->
     <a
         href="/articles/{article.id}"
-        class="group flex items-center gap-4 p-3 {RADIUS.card} border border-input-border bg-background hover:border-primary/60 transition-all shadow-2xs hover:shadow-xs {extraClass}"
+        class="group flex items-center gap-4 p-3 {RADIUS.card} border border-input-border bg-surface hover:border-primary/60 transition-all shadow-xs hover:shadow-sm {extraClass}"
     >
         <div class="w-20 h-20 rounded-xl overflow-hidden bg-input-background shrink-0 relative">
             {#if coverUrl}
@@ -161,7 +161,7 @@
     <!-- Standard Grid Card for Magazine Front & Articles Index -->
     <a
         href="/articles/{article.id}"
-        class="group {RADIUS.card} overflow-hidden border border-input-border bg-background hover:border-primary/50 transition-all duration-300 flex flex-col shadow-2xs hover:shadow-md {extraClass}"
+        class="group {RADIUS.card} overflow-hidden border border-input-border bg-surface hover:border-primary/50 transition-all duration-300 flex flex-col shadow-xs hover:shadow-md {extraClass}"
     >
         <div class="aspect-16/10 relative overflow-hidden bg-input-background">
             {#if coverUrl}

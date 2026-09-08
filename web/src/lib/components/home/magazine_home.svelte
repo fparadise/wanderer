@@ -43,7 +43,7 @@
 </script>
 
 <svelte:head>
-    <title>Wanderer | Le Magazine & Carnets d'Itinéraires</title>
+    <title>Trace Club | Récits d'Aventures & Traces Outdoor</title>
 </svelte:head>
 
 <div class="min-h-screen pt-4 sm:pt-6 pb-24 space-y-16">
@@ -75,7 +75,7 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-input-border">
             <div>
-                <span class="text-xs uppercase font-bold tracking-wider text-primary">Carnets de route & Récits</span>
+                <span class="text-xs uppercase font-bold tracking-wider text-primary">Récits & Traces</span>
                 <h3 class="text-2xl sm:text-3xl font-serif font-bold text-content mt-0.5">Derniers récits d'aventures</h3>
             </div>
 

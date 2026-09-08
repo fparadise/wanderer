@@ -27,8 +27,10 @@ export function extractBaseFileName(fileNameOrUrl?: string): string {
     let cleaned = decodeURIComponent(raw);
     // Remove PB random prefix: 10 to 16 alphanumeric characters followed by underscore
     cleaned = cleaned.replace(/^[a-zA-Z0-9]{10,16}_/, "");
-    // Remove PB random suffix hash before extension if present
-    cleaned = cleaned.replace(/_[a-zA-Z0-9]{6,16}(\.[a-zA-Z0-9]+)$/, "$1");
+    // Remove PB random suffix hash before extension if present (unless it's a route overview image)
+    if (!cleaned.toLowerCase().startsWith("route_")) {
+        cleaned = cleaned.replace(/_[a-zA-Z0-9]{6,16}(\.[a-zA-Z0-9]+)$/, "$1");
+    }
     // Normalize .jpeg to .jpg
     cleaned = cleaned.replace(/\.jpeg$/i, ".jpg");
     return cleaned.trim().toLowerCase();
@@ -37,6 +39,8 @@ export function extractBaseFileName(fileNameOrUrl?: string): string {
 /**
  * Deduplicates a list of photos within a map group or activity collection.
  * Waypoint photos take priority over trail photos since they contain richer POI metadata.
+ * Base-name and timestamp deduplication are strictly scoped to the same trail so that photos
+ * from different stages or trails are never discarded.
  */
 export function deduplicateGroupPhotos(photos: ArticleMediaItem[]): ArticleMediaItem[] {
     if (photos.length <= 1) return photos;
@@ -57,8 +61,8 @@ export function deduplicateGroupPhotos(photos: ArticleMediaItem[]): ArticleMedia
 
     const unique: ArticleMediaItem[] = [];
     const seenUrls = new Set<string>();
-    const seenBaseNames = new Set<string>();
-    const seenTimestamps = new Set<number>();
+    const seenTrailBaseNames = new Set<string>();
+    const seenTrailTimestamps = new Set<string>();
 
     for (const photo of sorted) {
         if (photo.url && seenUrls.has(photo.url)) {
@@ -67,18 +71,24 @@ export function deduplicateGroupPhotos(photos: ArticleMediaItem[]): ArticleMedia
 
         const baseName = extractBaseFileName(photo.fileName || photo.url);
         const nameWithoutExt = baseName.replace(/\.[^.]+$/, "");
-        if (nameWithoutExt.length >= 3 && seenBaseNames.has(baseName)) {
+
+        // Only deduplicate by base filename or timestamp within the same source trail
+        const trailId = photo.sourceTrailId || "global";
+        const trailBaseKey = `${trailId}:${baseName}`;
+        const trailTimeKey = photo.timestamp ? `${trailId}:${photo.timestamp}` : null;
+
+        if (nameWithoutExt.length >= 3 && seenTrailBaseNames.has(trailBaseKey)) {
             continue;
         }
 
-        if (photo.timestamp && seenTimestamps.has(photo.timestamp)) {
+        if (trailTimeKey && seenTrailTimestamps.has(trailTimeKey)) {
             continue;
         }
 
         unique.push(photo);
         if (photo.url) seenUrls.add(photo.url);
-        if (nameWithoutExt.length >= 3) seenBaseNames.add(baseName);
-        if (photo.timestamp) seenTimestamps.add(photo.timestamp);
+        if (nameWithoutExt.length >= 3) seenTrailBaseNames.add(trailBaseKey);
+        if (trailTimeKey) seenTrailTimestamps.add(trailTimeKey);
     }
 
     return unique;

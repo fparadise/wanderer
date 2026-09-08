@@ -28,11 +28,20 @@
     } from "$lib/stores/search_store";
     import { trails_search_bounding_box } from "$lib/stores/trail_store";
     import { getIconForLocation } from "$lib/util/icon_util";
+    import ArticleCard from "$lib/components/article/article_card.svelte";
+    import ArticleMapOverlay from "$lib/components/map/article_map_overlay.svelte";
+    import { isArticleInBounds } from "$lib/util/article_geo_util";
+    import type { Article } from "$lib/models/article";
     import type { Snapshot } from "@sveltejs/kit";
     import type { FeatureCollection } from "geojson";
     import * as M from "maplibre-gl";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
+
+    let allArticles: Article[] = $derived(page.data.articles || []);
+    let visibleArticles: Article[] = $state([]);
+    let hoveredArticleId: string | null = $state(null);
+    let isArticlesSectionCollapsed: boolean = $state(false);
 
     let trails: Trail[] = $state([]);
     let mapTrails: Trail[] = $state([]);
@@ -200,12 +209,40 @@
         handleFilterUpdate();
     }
 
+    function updateVisibleArticles() {
+        if (!map) {
+            return;
+        }
+        try {
+            const bounds = map.getBounds();
+            visibleArticles = allArticles.filter((art) => isArticleInBounds(art, bounds));
+        } catch (e) {
+            console.warn("Could not get map bounds for articles:", e);
+        }
+    }
+
+    $effect(() => {
+        if (map && allArticles.length > 0 && visibleArticles.length === 0) {
+            updateVisibleArticles();
+        }
+    });
+
+    function handleArticleSelect(article: Article) {
+        if (!article.id) return;
+        hoveredArticleId = article.id;
+        const el = document.querySelector(`[data-article-card-id="${article.id}"]`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+    }
+
     async function handleFilterUpdate() {
         if (!map) {
             return;
         }
         const bounds = map.getBounds();
         await searchTrails(bounds.getNorthEast(), bounds.getSouthWest());
+        updateVisibleArticles();
     }
 
     let moveTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -247,6 +284,8 @@
             if (!applied) {
                 return;
             }
+
+            updateVisibleArticles();
 
             page.url.searchParams.set("tl_lat", north.toString());
             page.url.searchParams.set("tl_lon", east.toString());
@@ -332,6 +371,10 @@
                 },
             );
         }
+
+        setTimeout(() => {
+            updateVisibleArticles();
+        }, 150);
     }
 
     async function onListScroll(e: Event) {
@@ -426,13 +469,59 @@
         </div>
 
         {#if !showFilter && (!showMap || (browser && window.innerWidth >= 768))}
+            {#if visibleArticles.length > 0}
+                <div class="mb-2 pb-3 border-b border-input-border space-y-2.5">
+                    <div class="flex items-center justify-between px-0.5">
+                        <div class="flex items-center gap-2">
+                            <span class="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/15 text-amber-500 text-xs">
+                                <i class="fa-solid fa-book-open"></i>
+                            </span>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-content/90">
+                                Récits ({visibleArticles.length})
+                            </h3>
+                        </div>
+                        <button
+                            type="button"
+                            class="text-xs text-content/60 hover:text-primary transition-colors flex items-center gap-1"
+                            onclick={() => (isArticlesSectionCollapsed = !isArticlesSectionCollapsed)}
+                            title={isArticlesSectionCollapsed ? "Afficher les récits" : "Replier les récits"}
+                        >
+                            <i class="fa-solid fa-chevron-{isArticlesSectionCollapsed ? 'down' : 'up'} text-[10px]"></i>
+                        </button>
+                    </div>
+
+                    {#if !isArticlesSectionCollapsed}
+                        <div class="flex flex-col gap-2">
+                            {#each visibleArticles as article (article.id)}
+                                <div
+                                    role="group"
+                                    data-article-card-id={article.id}
+                                    onmouseenter={() => (hoveredArticleId = article.id ?? null)}
+                                    onmouseleave={() => (hoveredArticleId = null)}
+                                >
+                                    <ArticleCard
+                                        {article}
+                                        variant="compact"
+                                        class={hoveredArticleId === article.id ? 'ring-2 ring-amber-500/80 !border-amber-500/80 shadow-md' : ''}
+                                    />
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
             {#if loading}
                 {#each { length: 4 } as _, index}
                     <SkeletonCard></SkeletonCard>
                 {/each}
             {:else}
-                {#if trails.length == 0}
+                {#if trails.length == 0 && visibleArticles.length == 0}
                     <EmptyStateSearch></EmptyStateSearch>
+                {:else if trails.length == 0 && visibleArticles.length > 0}
+                    <p class="text-xs text-content/60 italic py-2 px-1">
+                        Aucune trace individuelle supplémentaire dans cette zone.
+                    </p>
                 {/if}
                 {#each trails.filter(t => t.name !== "") as trail, i}
                     <a
@@ -457,6 +546,7 @@
     </div>
     <div
         id="trail-map"
+        class="relative"
         class:hidden={!showMap && browser && window.innerWidth < 768}
     >
         <MapWithElevationMaplibre
@@ -474,6 +564,12 @@
 
             bind:this={mapWithElevation}
         ></MapWithElevationMaplibre>
+        <ArticleMapOverlay
+            {map}
+            articles={visibleArticles}
+            {hoveredArticleId}
+            onSelectArticle={handleArticleSelect}
+        />
     </div>
 </main>
 

@@ -676,5 +676,9 @@
   "footer-desc": "An outdoor exploration platform built upon the open-source project Wanderer.",
   "footer-based-on": "Built with",
   "support-wanderer": "Support Wanderer",
-  "donate": "Donate"
+  "donate": "Donate",
+  "about-page": "About",
+  "legal-notice": "Legal Notice",
+  "support-wanderer-desc": "This site is powered by the open-source project Wanderer. You can support its developers or contribute to the code:",
+  "site-tagline": "Outdoor stories, expeditions and trail sharing."
 }

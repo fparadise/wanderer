@@ -54,6 +54,11 @@
     );
     let loadedTrails: Trail[] = $state(initialArticle?.expand?.relation || []);
     let activityPhotos: ArticleMediaItem[] = $state([]);
+    let excludedPhotos: string[] = $state(
+        initialArticle?.excluded_photos ? [...initialArticle.excluded_photos] : []
+    );
+    let excludedActivityPhotos: ArticleMediaItem[] = $state([]);
+    let showExcludedTray: boolean = $state(false);
 
     // Hero images management
     let rawHeroImages: string[] = $state(
@@ -184,7 +189,15 @@
                 });
             });
         });
-        activityPhotos = deduplicateGroupPhotos(photos);
+        const unique = deduplicateGroupPhotos(photos);
+        activityPhotos = unique.filter((p) => !isPhotoExcluded(p));
+        excludedActivityPhotos = unique.filter((p) => isPhotoExcluded(p));
+    }
+
+    function isPhotoExcluded(photo: ArticleMediaItem): boolean {
+        return excludedPhotos.some(
+            (ex) => ex === photo.url || (photo.fileName && ex === photo.fileName) || (photo.id && ex === photo.id)
+        );
     }
 
     function handleDragStart(idx: number) {
@@ -205,8 +218,27 @@
         draggedPhotoIdx = null;
     }
 
-    function removeActivityPhoto(index: number) {
-        activityPhotos = activityPhotos.filter((_, i) => i !== index);
+    function removeActivityPhoto(photo: ArticleMediaItem) {
+        const key = photo.url || photo.fileName || photo.id;
+        if (!excludedPhotos.includes(key)) {
+            excludedPhotos = [...excludedPhotos, key];
+        }
+        activityPhotos = activityPhotos.filter((p) => p.id !== photo.id && p.url !== photo.url);
+        if (!excludedActivityPhotos.some((p) => p.id === photo.id || p.url === photo.url)) {
+            excludedActivityPhotos = [...excludedActivityPhotos, photo];
+        }
+        show_toast({ type: "info", icon: "trash", text: "Photo retirée du récit." });
+    }
+
+    function restoreActivityPhoto(photo: ArticleMediaItem) {
+        excludedPhotos = excludedPhotos.filter(
+            (ex) => ex !== photo.url && ex !== photo.fileName && ex !== photo.id
+        );
+        excludedActivityPhotos = excludedActivityPhotos.filter((p) => p.id !== photo.id && p.url !== photo.url);
+        if (!activityPhotos.some((p) => p.id === photo.id || p.url === photo.url)) {
+            activityPhotos = [...activityPhotos, photo];
+        }
+        show_toast({ type: "success", icon: "check", text: "Photo restaurée dans le récit !" });
     }
 
     async function setAsCover(photo: ArticleMediaItem) {
@@ -306,6 +338,7 @@
                     tags: selectedTags,
                     technical_difficulty: technicalDifficulty,
                     featured: featured,
+                    excluded_photos: excludedPhotos,
                 },
                 heroFiles,
                 deletedHeroImages
@@ -356,7 +389,7 @@
             </a>
             <div>
                 <span class="text-xs uppercase font-bold tracking-widest text-primary">
-                    {mode === "edit" ? "Édition du carnet" : "Studio Magazine"}
+                    {mode === "edit" ? "Édition du récit" : "Studio Magazine"}
                 </span>
                 <h1 class="text-3xl font-serif font-bold text-content">
                     {mode === "edit" ? "Modifier le récit" : "Rédiger un nouveau récit"}
@@ -494,7 +527,7 @@
             </div>
 
             <!-- Activity Photos Tray (Media Items from linked trails) -->
-            {#if activityPhotos.length > 0}
+            {#if activityPhotos.length > 0 || excludedActivityPhotos.length > 0}
                 <div class="space-y-3 p-5 rounded-2xl border border-input-border bg-input-background/40 shadow-xs">
                     <div class="flex items-center justify-between">
                         <div>
@@ -508,61 +541,104 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
-                        {#each activityPhotos as photo, idx}
-                            <div
-                                draggable="true"
-                                role="listitem"
-                                ondragstart={() => handleDragStart(idx)}
-                                ondragover={(e) => handleDragOver(e, idx)}
-                                ondragend={handleDragEnd}
-                                class="group relative aspect-square rounded-xl overflow-hidden border border-input-border bg-neutral-900 shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none {draggedPhotoIdx === idx ? 'opacity-40 ring-2 ring-primary scale-95' : ''}"
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.caption || photo.sourceTrailName}
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
-                                />
-
-                                <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[10px] font-bold text-white shadow-xs">
-                                    #{idx + 1}
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onclick={() => removeActivityPhoto(idx)}
-                                    title="Retirer"
-                                    class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-all shadow-xs z-10"
+                    {#if activityPhotos.length > 0}
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
+                            {#each activityPhotos as photo, idx}
+                                <div
+                                    draggable="true"
+                                    role="listitem"
+                                    ondragstart={() => handleDragStart(idx)}
+                                    ondragover={(e) => handleDragOver(e, idx)}
+                                    ondragend={handleDragEnd}
+                                    class="group relative aspect-square rounded-xl overflow-hidden border border-input-border bg-neutral-900 shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none {draggedPhotoIdx === idx ? 'opacity-40 ring-2 ring-primary scale-95' : ''}"
                                 >
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || photo.sourceTrailName}
+                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                                    />
 
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 gap-1.5">
-                                    <span class="text-[10px] text-white/90 truncate font-semibold">
-                                        {photo.stageLabel}
-                                    </span>
-                                    <div class="flex items-center gap-1 pt-1 border-t border-white/20">
-                                        <button
-                                            type="button"
-                                            onclick={() => insertPhotoInText(photo)}
-                                            title="Insérer dans le corps du texte"
-                                            class="flex-1 py-1 rounded bg-white text-black hover:bg-neutral-200 text-[10px] font-bold text-center flex items-center justify-center gap-1"
-                                        >
-                                            <i class="fa-solid fa-feather-pointed"></i> Insérer
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onclick={() => setAsCover(photo)}
-                                            title="Définir en couverture"
-                                            class="p-1 rounded bg-black/60 text-white hover:bg-primary text-[10px] aspect-square flex items-center justify-center"
-                                        >
-                                            <i class="fa-solid fa-star"></i>
-                                        </button>
+                                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[10px] font-bold text-white shadow-xs">
+                                        #{idx + 1}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onclick={() => removeActivityPhoto(photo)}
+                                        title="Retirer cette photo du récit"
+                                        class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-all shadow-xs z-10"
+                                    >
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 gap-1.5">
+                                        <span class="text-[10px] text-white/90 truncate font-semibold">
+                                            {photo.stageLabel}
+                                        </span>
+                                        <div class="flex items-center gap-1 pt-1 border-t border-white/20">
+                                            <button
+                                                type="button"
+                                                onclick={() => insertPhotoInText(photo)}
+                                                title="Insérer dans le corps du texte"
+                                                class="flex-1 py-1 rounded bg-white text-black hover:bg-neutral-200 text-[10px] font-bold text-center flex items-center justify-center gap-1"
+                                            >
+                                                <i class="fa-solid fa-feather-pointed"></i> Insérer
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onclick={() => setAsCover(photo)}
+                                                title="Définir en couverture"
+                                                class="p-1 rounded bg-black/60 text-white hover:bg-primary text-[10px] aspect-square flex items-center justify-center"
+                                            >
+                                                <i class="fa-solid fa-star"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        {/each}
-                    </div>
+                            {/each}
+                        </div>
+                    {/if}
+
+                    {#if excludedActivityPhotos.length > 0}
+                        <div class="pt-3 border-t border-input-border/60">
+                            <button
+                                type="button"
+                                onclick={() => (showExcludedTray = !showExcludedTray)}
+                                class="text-xs text-content/70 hover:text-content font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                                <i class="fa-solid {showExcludedTray ? 'fa-chevron-down' : 'fa-chevron-right'} text-[10px]"></i>
+                                <span>Photos masquées ({excludedActivityPhotos.length})</span>
+                            </button>
+
+                            {#if showExcludedTray}
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-3">
+                                    {#each excludedActivityPhotos as photo}
+                                        <div
+                                            class="group relative aspect-square rounded-xl overflow-hidden border border-dashed border-input-border bg-neutral-900/60 opacity-60 hover:opacity-100 transition-all select-none"
+                                        >
+                                            <img
+                                                src={photo.url}
+                                                alt={photo.caption || photo.sourceTrailName}
+                                                class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                                            />
+                                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center p-2 gap-2">
+                                                <span class="text-[10px] text-white/90 truncate max-w-full font-semibold">
+                                                    {photo.stageLabel}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onclick={() => restoreActivityPhoto(photo)}
+                                                    class="px-2.5 py-1 rounded bg-primary text-white hover:bg-primary-hover text-[10px] font-bold shadow-xs flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    <i class="fa-solid fa-rotate-left"></i> Restaurer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
                 </div>
             {/if}
 

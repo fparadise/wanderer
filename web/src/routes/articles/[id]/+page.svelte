@@ -25,11 +25,15 @@
     } from "$lib/models/article_media";
     import { TRAIL_COLORS } from "$lib/config/map";
     import { articles_update } from "$lib/stores/article_store";
+    import PhotoGallery from "$lib/components/photo_gallery.svelte";
+    import "photoswipe/style.css";
     import type { PageData } from "./$types";
     import * as M from "maplibre-gl";
     import { onDestroy } from "svelte";
 
     let { data }: { data: PageData } = $props();
+
+    let gallery: PhotoGallery | undefined = $state();
 
     let article = $derived(data.article);
     let linkedTrails = $derived(article.expand?.relation || []);
@@ -231,7 +235,15 @@
             });
         }
 
-        return photos.map((p) => {
+        const excludedSet = new Set(article.excluded_photos || []);
+        const filtered = photos.filter(
+            (p) =>
+                !excludedSet.has(p.url) &&
+                (!p.fileName || !excludedSet.has(p.fileName)) &&
+                (!p.id || !excludedSet.has(p.id))
+        );
+
+        return filtered.map((p) => {
             if (scannedPhotoLocations[p.id]) {
                 return {
                     ...p,
@@ -1173,14 +1185,19 @@
                     </span>
                 </div>
 
+                <PhotoGallery
+                    photos={aggregatedPhotos.map((p) => p.url)}
+                    bind:this={gallery}
+                />
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {#each aggregatedPhotos as photo}
+                    {#each aggregatedPhotos as photo, idx}
                         <div
-                            class="group relative aspect-4/3 rounded-2xl overflow-hidden border shadow-xs bg-neutral-900 cursor-pointer"
-                            onclick={() => focusPhotoOnMap(photo)}
+                            class="group relative aspect-4/3 rounded-2xl overflow-hidden border border-input-border shadow-xs bg-neutral-900 cursor-pointer"
+                            onclick={() => gallery?.openGallery(idx)}
                             role="button"
                             tabindex="0"
-                            onkeydown={(e) => { if (e.key === 'Enter') focusPhotoOnMap(photo); }}
+                            onkeydown={(e) => { if (e.key === 'Enter') gallery?.openGallery(idx); }}
                         >
                             <img
                                 src={photo.url}
@@ -1189,7 +1206,7 @@
                             />
 
                             <!-- Top Badges -->
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
                                 <span class="bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                                     {photo.stageLabel}
                                 </span>
@@ -1201,13 +1218,44 @@
                                 {/if}
                             </div>
 
-                            <!-- Bottom caption on hover -->
-                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p class="text-xs text-white font-medium truncate">{photo.caption}</p>
-                                <span class="text-[10px] text-white/80 inline-flex items-center gap-1 mt-0.5">
-                                    <i class="fa-solid fa-magnifying-glass-location"></i>
-                                    Localiser sur la carte
-                                </span>
+                            <!-- Top Right: Focus on Map button if geotagged -->
+                            {#if photo.lat !== undefined && photo.lon !== undefined}
+                                <button
+                                    type="button"
+                                    onclick={(e) => {
+                                        e.stopPropagation();
+                                        focusPhotoOnMap(photo);
+                                    }}
+                                    title="Localiser sur la carte"
+                                    class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black/65 hover:bg-primary text-white flex items-center justify-center text-[11px] shadow-sm transition-all hover:scale-110 cursor-pointer"
+                                >
+                                    <i class="fa-solid fa-map-pin"></i>
+                                </button>
+                            {/if}
+
+                            <!-- Bottom caption & actions on hover -->
+                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-xs text-white font-medium truncate">{photo.caption}</p>
+                                    <span class="text-[10px] text-white/80 inline-flex items-center gap-1 mt-0.5">
+                                        <i class="fa-solid fa-expand text-[9px]"></i>
+                                        Plein écran
+                                    </span>
+                                </div>
+                                {#if photo.lat !== undefined && photo.lon !== undefined}
+                                    <button
+                                        type="button"
+                                        onclick={(e) => {
+                                            e.stopPropagation();
+                                            focusPhotoOnMap(photo);
+                                        }}
+                                        title="Localiser sur la carte"
+                                        class="shrink-0 text-[10px] text-white/90 hover:text-white bg-white/20 hover:bg-primary backdrop-blur-xs px-2 py-1 rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                    >
+                                        <i class="fa-solid fa-location-dot text-[9px]"></i>
+                                        Carte
+                                    </button>
+                                {/if}
                             </div>
                         </div>
                     {/each}

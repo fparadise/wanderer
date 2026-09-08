@@ -11,7 +11,7 @@ export const load: Load = async ({ fetch }) => {
             categories_index(fetch).catch(() => []),
             subcategories_index(fetch).catch(() => []),
             articles_index(1, 12, fetch).catch(() => ({ items: [], totalItems: 0 })),
-            fetch("/api/v1/trail?perPage=6&sort=-date,-created&expand=category,subcategory,author,trail_share_via_trail")
+            fetch("/api/v1/trail?perPage=6&sort=-date,-created&expand=category,subcategory,author,trail_share_via_trail,tags")
                 .then((r) => (r.ok ? r.json() : { items: [] }))
                 .catch(() => ({ items: [] })),
         ]);

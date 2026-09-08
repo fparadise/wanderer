@@ -17,6 +17,7 @@ export class Article {
     tags: string[];
     technical_difficulty: number;
     featured?: boolean;
+    excluded_photos?: string[];
     expand?: {
         relation?: Trail[];
         author?: Actor;
@@ -41,6 +42,7 @@ export class Article {
             tags?: string[];
             technical_difficulty?: number;
             featured?: boolean;
+            excluded_photos?: string[];
             expand?: {
                 relation?: Trail[];
                 author?: Actor;
@@ -62,6 +64,7 @@ export class Article {
         this.tags = params?.tags ?? [];
         this.technical_difficulty = params?.technical_difficulty ?? 0;
         this.featured = params?.featured ?? false;
+        this.excluded_photos = params?.excluded_photos ?? [];
         this.expand = params?.expand;
     }
 }

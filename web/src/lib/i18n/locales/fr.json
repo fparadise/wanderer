@@ -676,5 +676,9 @@
   "footer-desc": "Une plateforme d'itinéraires et d'aventures outdoor basée sur le projet open-source Wanderer.",
   "footer-based-on": "Propulsé par",
   "support-wanderer": "Soutenir Wanderer",
-  "donate": "Faire un don"
+  "donate": "Faire un don",
+  "about-page": "À propos",
+  "legal-notice": "Mentions légales",
+  "support-wanderer-desc": "Ce site est propulsé par le logiciel libre Wanderer. Vous pouvez soutenir ses développeurs ou contribuer au code :",
+  "site-tagline": "Récits d'aventures, cartographie et traces outdoor."
 }

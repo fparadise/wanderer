@@ -5,6 +5,8 @@ export default {
     extend: {
       colors: {
         'background': 'rgba(var(--background))',
+        'surface': 'rgba(var(--surface))',
+        'card': 'rgba(var(--surface))',
         'background-inverse': 'rgba(var(--background-inverse))',
         'content': 'rgba(var(--content))',
         'content-inverse': 'rgba(var(--content-inverse))',
@@ -29,7 +31,9 @@ export default {
 
       },
       fontFamily: {
-        'sans': ['IBMPlexSans', 'sans'],
+        'sans': ['"Plus Jakarta Sans"', 'IBMPlexSans', 'system-ui', '-apple-system', 'sans-serif'],
+        'serif': ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
+        'brand': ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
       },
     },
   },

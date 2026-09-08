@@ -72,6 +72,9 @@ export async function articles_create(
     if (articleData.featured !== undefined) {
         formData.append("featured", articleData.featured ? "true" : "false");
     }
+    if (articleData.excluded_photos !== undefined) {
+        formData.append("excluded_photos", JSON.stringify(articleData.excluded_photos));
+    }
 
     if (user?.actor) {
         formData.append("author", user.actor);
@@ -122,6 +125,7 @@ export async function articles_update(
     if (articleData.technical_difficulty !== undefined) formData.append("technical_difficulty", articleData.technical_difficulty.toString());
     if (articleData.tags !== undefined) formData.append("tags", JSON.stringify(articleData.tags));
     if (articleData.featured !== undefined) formData.append("featured", articleData.featured ? "true" : "false");
+    if (articleData.excluded_photos !== undefined) formData.append("excluded_photos", JSON.stringify(articleData.excluded_photos));
 
     if (articleData.relation !== undefined) {
         for (const trailId of articleData.relation) {

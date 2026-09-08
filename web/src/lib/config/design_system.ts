@@ -81,3 +81,36 @@ export function formatArticleSummary(article: {
 
     return parts;
 }
+
+/**
+ * Standard tokens for editorial / magazine elements across Wanderer.
+ */
+export const EDITORIAL_TOKENS = {
+    /** Primary theme accent for story badges, highlights and icons */
+    accent: "rgba(var(--primary))",
+    /** Hover state for theme accents */
+    accentHover: "rgba(var(--primary-hover))",
+    /** Soft translucent background for badges */
+    accentBackground: "rgba(var(--primary), 0.12)",
+    /** Border tint for primary cards / chips */
+    accentBorder: "rgba(var(--primary), 0.3)",
+    /** Pill badge styling for editorial markers */
+    badge: "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-primary text-white shadow-xs",
+    badgeOutline: "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/25",
+} as const;
+
+/**
+ * Super Pin map marker design tokens ensuring strict adherence to the design system.
+ */
+export const SUPER_PIN_TOKENS = {
+    pillRadius: RADIUS.pill,
+    cardRadius: RADIUS.card,
+    controlRadius: RADIUS.control,
+    maxTitleWidth: "185px",
+    maxPillWidth: "290px",
+    thumbSize: "32px",
+    pointerWidth: 16, // px (8px left + 8px right border)
+    pointerHeight: 10, // px
+    accentColor: "rgba(var(--primary))",
+    accentHoverColor: "rgba(var(--primary-hover))",
+} as const;
