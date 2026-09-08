@@ -3,6 +3,7 @@
     import type { Trail } from "$lib/models/trail";
     import { currentUser } from "$lib/stores/user_store";
     import { formatDistance, formatElevation } from "$lib/util/format_util";
+    import { getFileURL } from "$lib/util/file_util";
     import { RADIUS } from "$lib/config/design_system";
     import ArticleCard from "$lib/components/article/article_card.svelte";
     import { _ } from "svelte-i18n";
@@ -136,39 +137,59 @@
                 {:else}
                     <div class="space-y-3">
                         {#each recentTrails as trail (trail.id)}
-                            {@const authorName = trail.expand?.author?.preferred_username || trail.expand?.author?.username || trail.author}
+                            {@const author = trail.expand?.author}
+                            {@const authorName = author?.preferred_username || author?.username || "Aventurier"}
+                            {@const authorAvatar = author?.icon ? getFileURL(author, author.icon) : `https://api.dicebear.com/7.x/initials/svg?seed=${authorName}`}
+                            {@const activityDate = trail.date
+                                ? new Date(trail.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : (trail.created ? new Date(trail.created).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '')}
                             <a
                                 href="/trail/view/@{authorName}/{trail.id}"
-                                class="group block p-3.5 rounded-xl border border-input-border bg-background hover:border-primary/60 transition-all shadow-2xs hover:shadow-xs"
+                                class="group block p-3.5 rounded-xl border border-input-border bg-background hover:border-primary/60 transition-all shadow-2xs hover:shadow-xs space-y-2.5"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0 flex-1 space-y-1">
-                                        <div class="flex items-center gap-1.5 text-[10px] text-content/60 font-semibold uppercase">
-                                            {#if trail.expand?.category?.name}
-                                                <span class="text-primary">{trail.expand.category.name}</span>
-                                                <span>·</span>
-                                            {/if}
-                                            <span>{trail.created ? new Date(trail.created).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
-                                        </div>
+                                <!-- Author Header: Avatar, Username, GPX Activity Date -->
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <img
+                                            src={authorAvatar}
+                                            alt={authorName}
+                                            class="w-5 h-5 rounded-full object-cover border border-input-border shrink-0"
+                                        />
+                                        <span class="text-xs font-bold text-content truncate group-hover:text-primary transition-colors">
+                                            @{authorName}
+                                        </span>
+                                    </div>
+                                    <span class="text-[11px] text-content/60 shrink-0 font-medium">
+                                        {activityDate}
+                                    </span>
+                                </div>
 
+                                <!-- Trail Title & Category -->
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1 space-y-0.5">
                                         <h4 class="text-sm font-semibold text-content group-hover:text-primary transition-colors truncate">
                                             {trail.name}
                                         </h4>
-
-                                        {#if trail.location}
-                                            <p class="text-xs text-content/60 truncate flex items-center gap-1">
-                                                <i class="fa-solid fa-location-dot text-[10px] text-content/50"></i>
-                                                {trail.location}
-                                            </p>
-                                        {/if}
+                                        <div class="flex items-center gap-2 text-[11px] text-content/60">
+                                            {#if trail.expand?.category?.name}
+                                                <span class="text-primary font-semibold">{trail.expand.category.name}</span>
+                                            {/if}
+                                            {#if trail.location}
+                                                {#if trail.expand?.category?.name}<span>·</span>{/if}
+                                                <span class="truncate flex items-center gap-1">
+                                                    <i class="fa-solid fa-location-dot text-[9px] text-content/40"></i>
+                                                    {trail.location}
+                                                </span>
+                                            {/if}
+                                        </div>
                                     </div>
 
-                                    <!-- Quick Metrics using formatDistance & formatElevation -->
+                                    <!-- Quick Metrics -->
                                     <div class="text-right shrink-0">
                                         <span class="text-xs font-bold text-content block">
                                             {formatDistance(trail.distance, { compact: true })}
                                         </span>
-                                        <span class="text-[11px] text-content/60 block">
+                                        <span class="text-[11px] font-semibold text-primary block">
                                             +{formatElevation(trail.elevation_gain)}
                                         </span>
                                     </div>
