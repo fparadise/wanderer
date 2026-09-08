@@ -220,13 +220,15 @@
             return;
         }
 
+        const currentBody = editorComponent?.getHTML ? editorComponent.getHTML() : body;
+
         submitting = true;
         try {
             const created = await articles_create(
                 {
                     title,
                     intro,
-                    body,
+                    body: currentBody,
                     total_distance: totalDistance,
                     total_elevation_gain: totalElevationGain,
                     total_days: totalDays,
@@ -242,7 +244,14 @@
             goto(`/articles/${created.id}`);
         } catch (e: any) {
             console.error(e);
-            show_toast({ type: "error", icon: "close", text: e.message || "Erreur lors de la publication." });
+            let errorMsg = e.message || "Erreur lors de la publication.";
+            if (e.detail && typeof e.detail === "object") {
+                const fieldErrors = Object.entries(e.detail)
+                    .map(([field, err]: [string, any]) => `${field}: ${typeof err === "object" ? err.message || JSON.stringify(err) : err}`)
+                    .join(", ");
+                if (fieldErrors) errorMsg += ` (${fieldErrors})`;
+            }
+            show_toast({ type: "error", icon: "close", text: errorMsg });
         } finally {
             submitting = false;
         }

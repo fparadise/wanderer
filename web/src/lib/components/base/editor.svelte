@@ -653,6 +653,10 @@
     export function insertHTML(htmlContent: string) {
         editor?.chain().focus().insertContent(htmlContent).run();
     }
+
+    export function getHTML(): string {
+        return editor?.getHTML() ?? "";
+    }
 </script>
 
 <div id="editor-wrapper">
