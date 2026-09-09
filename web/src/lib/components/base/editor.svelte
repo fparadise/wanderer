@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Editor, mergeAttributes, Node } from "@tiptap/core";
+    import { NodeSelection } from "@tiptap/pm/state";
     import { Link } from "@tiptap/extension-link";
     import Mention from "@tiptap/extension-mention";
     import Placeholder from "@tiptap/extension-placeholder";
@@ -13,7 +14,8 @@
         default as DropdownList,
         default as SearchList,
     } from "./search_list.svelte";
-    import { type SelectItem } from "./select.svelte";
+    import Select, { type SelectItem } from "./select.svelte";
+    import type { Level } from "@tiptap/extension-heading";
     import TextField from "./text_field.svelte";
     import Toggle from "./toggle.svelte";
     import type { SearchItem } from "./search.svelte";
@@ -24,6 +26,7 @@
     import { TRAIL_COLORS } from "$lib/config/map";
     import { searchActors } from "$lib/stores/search_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { isVideoURL } from "$lib/util/file_util";
 
     export const CustomImage = Node.create({
         name: "image",
@@ -50,12 +53,12 @@
                     tag: "figure[data-layout]",
                     getAttrs: (dom) => {
                         const el = dom as HTMLElement;
-                        const img = el.querySelector("img");
+                        const media = el.querySelector("img, video");
                         const figcaption = el.querySelector("figcaption");
                         return {
-                            src: img?.getAttribute("src") || null,
-                            alt: img?.getAttribute("alt") || "",
-                            title: figcaption?.textContent?.trim() || img?.getAttribute("title") || "",
+                            src: media?.getAttribute("src") || null,
+                            alt: media?.getAttribute("alt") || "",
+                            title: figcaption?.textContent?.trim() || media?.getAttribute("title") || "",
                             layout: el.getAttribute("data-layout") || "full",
                         };
                     },
@@ -64,12 +67,12 @@
                     tag: "figure",
                     getAttrs: (dom) => {
                         const el = dom as HTMLElement;
-                        const img = el.querySelector("img");
+                        const media = el.querySelector("img, video");
                         const figcaption = el.querySelector("figcaption");
                         return {
-                            src: img?.getAttribute("src") || null,
-                            alt: img?.getAttribute("alt") || "",
-                            title: figcaption?.textContent?.trim() || img?.getAttribute("title") || "",
+                            src: media?.getAttribute("src") || null,
+                            alt: media?.getAttribute("alt") || "",
+                            title: figcaption?.textContent?.trim() || media?.getAttribute("title") || "",
                             layout: "full",
                         };
                     },
@@ -86,29 +89,52 @@
                         };
                     },
                 },
+                {
+                    tag: "video[src]",
+                    getAttrs: (dom) => {
+                        const el = dom as HTMLElement;
+                        return {
+                            src: el.getAttribute("src"),
+                            alt: el.getAttribute("alt") || "",
+                            title: el.getAttribute("title") || "",
+                            layout: "full",
+                        };
+                    },
+                },
             ];
         },
         renderHTML({ HTMLAttributes }) {
             const layout = HTMLAttributes["data-layout"] || HTMLAttributes.layout || "full";
+            const isVideo = isVideoURL(HTMLAttributes.src || "");
             let figureClass = "my-6 text-center clear-both";
-            let imgClass = "rounded-2xl max-w-full my-2 border shadow-sm object-cover max-h-[550px]";
+            let mediaClass = "rounded-2xl max-w-full my-2 border shadow-sm h-auto";
 
             if (layout === "full") {
                 figureClass = "my-8 w-full text-center clear-both";
-                imgClass += " w-full mx-auto";
+                mediaClass += " w-full mx-auto";
             } else if (layout === "center") {
                 figureClass = "my-6 mx-auto max-w-2xl text-center clear-both";
-                imgClass += " mx-auto";
+                mediaClass += " mx-auto";
             } else if (layout === "left") {
                 figureClass = "my-4 sm:float-left sm:mr-6 sm:mb-4 max-w-full sm:max-w-[48%] clear-left text-left";
-                imgClass += " w-full";
+                mediaClass += " w-full";
             } else if (layout === "right") {
                 figureClass = "my-4 sm:float-right sm:ml-6 sm:mb-4 max-w-full sm:max-w-[48%] clear-right text-right";
-                imgClass += " w-full";
+                mediaClass += " w-full";
             }
 
             const cleanAttrs = { ...HTMLAttributes };
             delete cleanAttrs.layout;
+
+            const mediaTag = isVideo ? "video" : "img";
+            const mediaAttrs: Record<string, any> = {
+                class: mediaClass,
+            };
+            if (isVideo) {
+                mediaAttrs.controls = "true";
+                mediaAttrs.playsinline = "true";
+                mediaAttrs.preload = "metadata";
+            }
 
             return [
                 "figure",
@@ -117,11 +143,9 @@
                     "data-layout": layout,
                 },
                 [
-                    "img",
+                    mediaTag,
                     mergeAttributes(
-                        {
-                            class: imgClass,
-                        },
+                        mediaAttrs,
                         cleanAttrs
                     ),
                 ],
@@ -137,6 +161,7 @@
         group: "inline",
         inline: true,
         selectable: true,
+        draggable: true,
         atom: true,
         addAttributes() {
             return {
@@ -175,7 +200,7 @@
             return [
                 "span",
                 mergeAttributes({
-                    class: "mention pk-badge cursor-pointer font-bold inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs shadow-2xs mx-1 align-baseline select-none transition-all",
+                    class: "mention pk-badge cursor-pointer font-bold inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs shadow-2xs mx-1 align-baseline select-none transition-all hover:opacity-85",
                     "data-stage": stage.toString(),
                     "data-km": km.toString(),
                     "data-label": rawLabel,
@@ -205,6 +230,7 @@
         searchListPosition?: string;
         mediaItems?: ArticleMediaItem[];
         trails?: Trail[];
+        stickyToolbar?: boolean;
     }
 
     let {
@@ -216,6 +242,7 @@
         searchListPosition = "absolute",
         mediaItems = [],
         trails = [],
+        stickyToolbar = true,
     }: Props = $props();
 
     const fontSizes: SelectItem[] = [
@@ -232,6 +259,51 @@
     let linkURLError: string = $state("");
     let linkText: string = $state("");
     let openLinkInNewTab: boolean = $state(false);
+
+    // Reactive active formatting state for real-time UI indicator
+    let activeState = $state({
+        bold: false,
+        italic: false,
+        strike: false,
+        code: false,
+        codeBlock: false,
+        bulletList: false,
+        orderedList: false,
+        blockquote: false,
+        link: false,
+        image: false,
+        pkBadge: false,
+        canUndo: false,
+        canRedo: false,
+    });
+
+    function refreshActiveState() {
+        if (!editor) return;
+        activeState.bold = editor.isActive("bold");
+        activeState.italic = editor.isActive("italic");
+        activeState.strike = editor.isActive("strike");
+        activeState.code = editor.isActive("code");
+        activeState.codeBlock = editor.isActive("codeBlock");
+        activeState.bulletList = editor.isActive("bulletList");
+        activeState.orderedList = editor.isActive("orderedList");
+        activeState.blockquote = editor.isActive("blockquote");
+        activeState.link = editor.isActive("link");
+        activeState.image = editor.isActive("image");
+        activeState.pkBadge = editor.isActive("pkBadge");
+        activeState.canUndo = editor.can().undo();
+        activeState.canRedo = editor.can().redo();
+
+        if (editor.isActive("paragraph")) {
+            currentFontSize = "p";
+        } else {
+            for (let i = 1; i <= 5; i++) {
+                if (editor.isActive("heading", { level: i as Level })) {
+                    currentFontSize = "h" + i;
+                    break;
+                }
+            }
+        }
+    }
 
     $effect(() => {
         value;
@@ -416,32 +488,45 @@
                 PKBadge,
             ],
             content: value,
-            onTransaction: ({ editor: newEditor }) => {
-                // force re-render so `editor.isActive` works as expected
-                editor = undefined;
-                editor = newEditor;
+            onTransaction: () => {
+                refreshActiveState();
             },
             onUpdate: (props) => {
                 value = editor?.getHTML() ?? "";
+                refreshActiveState();
             },
             editorProps: {
                 attributes: {
-                    class: `prose dark:prose-invert text-content bg-input-background border border-input-border rounded-md p-3 resize-none transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 ${extraClasses}`,
+                    class: `prose dark:prose-invert text-content p-4 min-h-[350px] resize-none transition-colors focus:outline-none max-w-none rounded-b-2xl ${extraClasses}`,
+                },
+                handleClickOn: (view, pos, node, nodePos, event, direct) => {
+                    if (node.type.name === "pkBadge") {
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                NodeSelection.create(view.state.doc, nodePos)
+                            )
+                        );
+                        openPkModal();
+                        return true;
+                    }
+                    return false;
                 },
             },
-            onSelectionUpdate: ({ editor }) => {
-                if (editor.isActive("paragraph")) {
+            onSelectionUpdate: ({ editor: ed }) => {
+                refreshActiveState();
+                if (ed.isActive("paragraph")) {
                     currentFontSize = "p";
                     return;
                 }
                 for (let i = 1; i <= 5; i++) {
-                    if (editor.isActive("heading", { level: i })) {
+                    if (ed.isActive("heading", { level: i })) {
                         currentFontSize = "h" + i;
                         return;
                     }
                 }
             },
         });
+        refreshActiveState();
     });
 
     onDestroy(() => {
@@ -519,6 +604,7 @@
     let imageLayout: "full" | "center" | "left" | "right" = $state("full");
 
     // PK Modal state
+    let isEditingPk: boolean = $state(false);
     let pkModalStage: number = $state(1);
     let pkModalKm: number = $state(0);
     let pkModalLabel: string = $state("");
@@ -611,14 +697,52 @@
     }
 
     function openPkModal() {
-        pkModalStage = 1;
-        pkModalKm = 0;
-        pkModalLabel = "";
+        if (editor?.isActive("pkBadge")) {
+            isEditingPk = true;
+            const attrs = editor.getAttributes("pkBadge");
+            pkModalStage = attrs.stage || 1;
+            pkModalKm = attrs.km ?? 0;
+            const raw = attrs.label || "";
+            const isDefault =
+                /^📍?\s*Étape\s+\d+\s*[·•-]\s*km\s*[\d.]+/i.test(raw) ||
+                /^📍?\s*KM\s+[\d.]+/i.test(raw);
+            pkModalLabel = isDefault
+                ? ""
+                : raw
+                      .replace(/^📍\s*/, "")
+                      .replace(/^Étape\s+\d+\s*[·•-]\s*/i, "")
+                      .replace(/^KM\s+[\d.]+\s*[·•-]\s*/i, "")
+                      .trim();
+        } else {
+            isEditingPk = false;
+            pkModalStage = 1;
+            pkModalKm = 0;
+            pkModalLabel = "";
+        }
         pkModal.openModal();
     }
 
     function applyPk() {
-        insertPKBadge(pkModalStage, pkModalKm, pkModalLabel.trim() || undefined);
+        if (isEditingPk) {
+            editor
+                ?.chain()
+                .focus()
+                .updateAttributes("pkBadge", {
+                    stage: pkModalStage,
+                    km: pkModalKm,
+                    label: pkModalLabel.trim(),
+                })
+                .run();
+        } else {
+            insertPKBadge(pkModalStage, pkModalKm, pkModalLabel.trim() || undefined);
+        }
+        pkModal.closeModal();
+    }
+
+    function deleteCurrentPk() {
+        if (editor?.isActive("pkBadge")) {
+            editor?.chain().focus().deleteSelection().run();
+        }
         pkModal.closeModal();
     }
 
@@ -645,7 +769,7 @@
             attrs: {
                 stage,
                 km,
-                label: label || `📍 Étape ${stage} · km ${km}`,
+                label: label?.trim() || "",
             },
         }).run();
     }
@@ -659,140 +783,220 @@
     }
 </script>
 
-<div id="editor-wrapper">
+<div id="editor-wrapper" class="relative w-full">
     {#if label.length}
-        <p class="text-sm font-medium mb-1">
+        <p class="text-sm font-medium mb-1.5 text-content">
             {label}
         </p>
     {/if}
-    <!-- Toolbar -->
-    <div class="flex flex-wrap items-center py-2 gap-y-2">
-        <div class="mr-2">
-            <!-- <Select
-                items={fontSizes}
-                bind:value={currentFontSize}
-                onchange={(value: string) => {
-                    if (value.startsWith("p")) {
-                        editor?.chain().focus().setParagraph().run();
-                    } else {
-                        editor
-                            ?.chain()
-                            .focus()
-                            .setHeading({
-                                level: parseInt(value.substring(1)) as Level,
-                            })
-                            .run();
-                    }
-                }}
-            ></Select> -->
+
+    <div class="editor-container border border-input-border rounded-xl bg-input-background overflow-visible focus-within:border-input-border-focus transition-colors">
+        <!-- Sticky Toolbar -->
+        <div
+            class="flex flex-wrap items-center py-2 px-3 gap-y-2 border-b border-input-border rounded-t-xl bg-surface/95 backdrop-blur-md z-30 transition-all {stickyToolbar ? 'sticky top-[72px] lg:top-[88px] shadow-2xs' : ''}"
+        >
+            <!-- History: Undo / Redo -->
+            <div class="flex gap-1 border-r border-input-border pr-2">
+                <button
+                    type="button"
+                    class="btn-icon"
+                    disabled={!activeState.canUndo}
+                    class:opacity-30={!activeState.canUndo}
+                    onclick={() => editor?.chain().focus().undo().run()}
+                    title="Annuler (Ctrl+Z)"
+                    aria-label="Annuler"
+                >
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    disabled={!activeState.canRedo}
+                    class:opacity-30={!activeState.canRedo}
+                    onclick={() => editor?.chain().focus().redo().run()}
+                    title="Rétablir (Ctrl+Y)"
+                    aria-label="Rétablir"
+                >
+                    <i class="fas fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <!-- Paragraph & Headings using Wanderer's native Select -->
+            <div class="mr-2 border-r border-input-border pr-2">
+                <Select
+                    items={fontSizes}
+                    bind:value={currentFontSize}
+                    extraClasses="h-8 py-0 text-xs font-medium"
+                    onchange={(val: string) => {
+                        if (val.startsWith("p")) {
+                            editor?.chain().focus().setParagraph().run();
+                        } else {
+                            const level = parseInt(val.substring(1), 10) as Level;
+                            editor?.chain().focus().setHeading({ level }).run();
+                        }
+                    }}
+                />
+            </div>
+
+            <!-- Inline formatting -->
+            <div class="flex gap-1 border-r border-input-border pr-2">
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.bold}
+                    class:text-white={activeState.bold}
+                    class:dark:text-stone-900={activeState.bold}
+                    onclick={() => editor?.chain().focus().toggleBold().run()}
+                    title="Gras (Ctrl+B)"
+                    aria-label="Gras"
+                >
+                    <i class="fas fa-bold"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.italic}
+                    class:text-white={activeState.italic}
+                    class:dark:text-stone-900={activeState.italic}
+                    onclick={() => editor?.chain().focus().toggleItalic().run()}
+                    title="Italique (Ctrl+I)"
+                    aria-label="Italique"
+                >
+                    <i class="fas fa-italic"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.strike}
+                    class:text-white={activeState.strike}
+                    class:dark:text-stone-900={activeState.strike}
+                    onclick={() => editor?.chain().focus().toggleStrike().run()}
+                    title="Barré"
+                    aria-label="Barré"
+                >
+                    <i class="fas fa-strikethrough"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.code}
+                    class:text-white={activeState.code}
+                    class:dark:text-stone-900={activeState.code}
+                    onclick={() => editor?.chain().focus().toggleCode().run()}
+                    title="Code en ligne"
+                    aria-label="Code en ligne"
+                >
+                    <i class="fas fa-code"></i>
+                </button>
+            </div>
+
+            <!-- Lists & Blocks -->
+            <div class="flex gap-1 border-r border-input-border pr-2">
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.bulletList}
+                    class:text-white={activeState.bulletList}
+                    class:dark:text-stone-900={activeState.bulletList}
+                    onclick={() => editor?.chain().focus().toggleBulletList().run()}
+                    title="Liste à puces"
+                    aria-label="Liste à puces"
+                >
+                    <i class="fas fa-list-ul"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.orderedList}
+                    class:text-white={activeState.orderedList}
+                    class:dark:text-stone-900={activeState.orderedList}
+                    onclick={() => editor?.chain().focus().toggleOrderedList().run()}
+                    title="Liste numérotée"
+                    aria-label="Liste numérotée"
+                >
+                    <i class="fas fa-list-ol"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.blockquote}
+                    class:text-white={activeState.blockquote}
+                    class:dark:text-stone-900={activeState.blockquote}
+                    onclick={() => editor?.chain().focus().toggleBlockquote().run()}
+                    title="Citation"
+                    aria-label="Citation"
+                >
+                    <i class="fas fa-quote-right"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.codeBlock}
+                    class:text-white={activeState.codeBlock}
+                    class:dark:text-stone-900={activeState.codeBlock}
+                    onclick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                    title="Bloc de code"
+                    aria-label="Bloc de code"
+                >
+                    <i class="fas fa-file-code"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    onclick={() => editor?.chain().focus().setHorizontalRule().run()}
+                    title="Ligne de séparation"
+                    aria-label="Ligne de séparation"
+                >
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+
+            <!-- Inserts: Link, Image, PK Badge -->
+            <div class="flex gap-1 px-1">
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.link}
+                    class:text-white={activeState.link}
+                    class:dark:text-stone-900={activeState.link}
+                    onclick={() => openLinkModal()}
+                    title="Lien"
+                    aria-label="Lien"
+                >
+                    <i class="fas fa-link"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.image}
+                    class:text-white={activeState.image}
+                    class:dark:text-stone-900={activeState.image}
+                    onclick={() => openImageModal()}
+                    title="Insérer ou modifier une image"
+                    aria-label="Image"
+                >
+                    <i class="fas fa-image"></i>
+                </button>
+                <button
+                    type="button"
+                    class="btn-icon"
+                    class:bg-primary={activeState.pkBadge}
+                    class:text-white={activeState.pkBadge}
+                    class:dark:text-stone-900={activeState.pkBadge}
+                    onclick={() => openPkModal()}
+                    title="Insérer ou modifier un repère kilométrique (PK)"
+                    aria-label="Point Kilométrique"
+                >
+                    <i class="fas fa-location-dot"></i>
+                </button>
+            </div>
         </div>
-        <div class="flex gap-2 border-r border-input-border pr-2">
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => editor?.chain().focus().toggleBold().run()}
-                class:ring-2={editor?.isActive("bold")}
-                aria-label="Bold"
-            >
-                <i class="fas fa-bold"></i>
-            </button>
 
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => editor?.chain().focus().toggleItalic().run()}
-                class:ring-2={editor?.isActive("italic")}
-                aria-label="Italic"
-            >
-                <i class="fas fa-italic"></i>
-            </button>
-
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => editor?.chain().focus().toggleUnderline().run()}
-                class:ring-2={editor?.isActive("underline")}
-                aria-label="Underline"
-            >
-                <i class="fas fa-underline"></i>
-            </button>
-        </div>
-
-        <div class="flex gap-1 border-r border-input-border px-2">
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => editor?.chain().focus().toggleBulletList().run()}
-                class:ring-2={editor?.isActive("bulletList")}
-                aria-label="Bullet List"
-            >
-                <i class="fas fa-list-ul"></i>
-            </button>
-
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() =>
-                    editor?.chain().focus().toggleOrderedList().run()}
-                class:ring-2={editor?.isActive("orderedList")}
-                aria-label="Numbered List"
-            >
-                <i class="fas fa-list-ol"></i>
-            </button>
-        </div>
-
-        <div class="flex gap-1 border-r border-input-border px-2">
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => editor?.chain().focus().toggleBlockquote().run()}
-                class:ring-2={editor?.isActive("blockquote")}
-                aria-label="Quote"
-            >
-                <i class="fas fa-quote-right"></i>
-            </button>
-        </div>
-
-        <div class="flex gap-1 border-r border-input-border px-2">
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => openLinkModal()}
-                class:ring-2={editor?.isActive("link")}
-                aria-label="Link"
-            >
-                <i class="fas fa-link"></i>
-            </button>
-        </div>
-
-        <!-- Image and PK Insertion -->
-        <div class="flex gap-1 px-2">
-            <button
-                type="button"
-                class="btn-icon"
-                onclick={() => openImageModal()}
-                class:ring-2={editor?.isActive("image")}
-                title="Insérer ou modifier une image"
-                aria-label="Image"
-            >
-                <i class="fas fa-image"></i>
-            </button>
-
-            <button
-                type="button"
-                class="btn-icon text-primary hover:text-primary"
-                onclick={() => openPkModal()}
-                title="Insérer un repère kilométrique (PK)"
-                aria-label="Point Kilométrique"
-            >
-                <i class="fas fa-location-dot"></i>
-            </button>
-        </div>
+        <div bind:this={element}></div>
     </div>
-    <div bind:this={element}></div>
 
     {#if error}
-        <span class="editor-error text-xs text-red-400">
+        <span class="editor-error text-xs text-red-400 mt-1.5 block">
             {error instanceof Array ? $_(error[0]) : error}
         </span>
     {/if}
@@ -879,7 +1083,7 @@
             {#if !isEditingImage && imageSourceTab === 'library' && mediaItems && mediaItems.length > 0}
                 <div class="space-y-2">
                     <span class="text-xs text-content/70 font-medium">
-                        Sélectionnez une photo issue de vos traces GPS :
+                        Sélectionnez un média issu de vos traces GPS :
                     </span>
                     <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1 border border-input-border rounded-xl bg-input-background/30">
                         {#each mediaItems as item}
@@ -888,7 +1092,14 @@
                                 onclick={() => selectMediaItem(item)}
                                 class="relative aspect-square rounded-lg overflow-hidden border transition-all hover:opacity-90 {imageSrc === item.url ? 'ring-2 ring-primary border-primary scale-95 shadow-md' : 'opacity-80'}"
                             >
-                                <img src={item.url} alt={item.caption || item.sourceTrailName} class="w-full h-full object-cover" />
+                                {#if isVideoURL(item.url)}
+                                    <video src={item.url} class="w-full h-full object-cover pointer-events-none" muted preload="metadata"></video>
+                                    <span class="absolute top-1 right-1 bg-black/70 rounded-full w-5 h-5 flex items-center justify-center text-white text-[10px]">
+                                        <i class="fa-solid fa-play"></i>
+                                    </span>
+                                {:else}
+                                    <img src={item.url} alt={item.caption || item.sourceTrailName} class="w-full h-full object-cover" />
+                                {/if}
                                 <span class="absolute bottom-0 inset-x-0 bg-black/70 text-[9px] text-white truncate px-1 py-0.5 text-center">
                                     {item.stageLabel}
                                 </span>
@@ -904,11 +1115,11 @@
                     {#if !isEditingImage}
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
-                                Téléverser un fichier local
+                                Téléverser un fichier local (photo ou vidéo)
                             </label>
                             <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,video/*"
                                 onchange={handleImageUpload}
                                 class="file-input w-full text-xs"
                             />
@@ -917,7 +1128,7 @@
 
                     <div>
                         <label for="img-url-input" class="block text-xs font-bold uppercase tracking-wider text-content/70 mb-1">
-                            URL de l'image
+                            URL de l'image ou de la vidéo
                         </label>
                         <input
                             id="img-url-input"
@@ -930,13 +1141,19 @@
                 </div>
             {/if}
 
-            <!-- Image Preview if selected -->
+            <!-- Media Preview if selected -->
             {#if imageSrc}
                 <div class="flex items-center gap-3 p-2 rounded-xl bg-input-background/40 border border-input-border">
-                    <img src={imageSrc} alt="Aperçu" class="w-16 h-16 object-cover rounded-lg border border-input-border shrink-0" />
+                    {#if isVideoURL(imageSrc)}
+                        <video src={imageSrc} class="w-16 h-16 object-cover rounded-lg border border-input-border shrink-0" muted preload="metadata"></video>
+                    {:else}
+                        <img src={imageSrc} alt="Aperçu" class="w-16 h-16 object-cover rounded-lg border border-input-border shrink-0" />
+                    {/if}
                     <div class="min-w-0 flex-1">
                         <p class="text-xs font-semibold text-content truncate">{imageSrc}</p>
-                        <p class="text-[11px] text-content/70">Image sélectionnée</p>
+                        <p class="text-[11px] text-content/70">
+                            {isVideoURL(imageSrc) ? "Vidéo sélectionnée" : "Image sélectionnée"}
+                        </p>
                     </div>
                     {#if !isEditingImage}
                         <button
@@ -1064,10 +1281,10 @@
     {/snippet}
 </Modal>
 
-<!-- Modal: Insert PK Badge -->
+<!-- Modal: Insert / Edit PK Badge -->
 <Modal
     id="editor-pk-modal"
-    title="Insérer un repère kilométrique (PK)"
+    title={isEditingPk ? "Modifier le repère kilométrique (PK)" : "Insérer un repère kilométrique (PK)"}
     size="max-w-md"
     bind:this={pkModal}
 >
@@ -1145,22 +1362,36 @@
         </div>
     {/snippet}
     {#snippet footer()}
-        <div class="flex items-center justify-end gap-2 w-full">
-            <button
-                type="button"
-                class="btn-secondary text-xs py-1.5 px-4 rounded-xl"
-                onclick={() => pkModal.closeModal()}
-            >
-                Annuler
-            </button>
-            <button
-                type="button"
-                class="btn-primary text-xs py-1.5 px-5 rounded-xl flex items-center gap-1.5"
-                onclick={() => applyPk()}
-            >
-                <i class="fa-solid fa-location-dot"></i>
-                <span>Insérer le repère</span>
-            </button>
+        <div class="flex items-center justify-between gap-2 w-full">
+            {#if isEditingPk}
+                <button
+                    type="button"
+                    class="btn-secondary text-xs py-1.5 px-3 rounded-xl text-red-500 hover:text-red-700 hover:border-red-300 flex items-center gap-1.5"
+                    onclick={deleteCurrentPk}
+                >
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>Supprimer</span>
+                </button>
+            {:else}
+                <div></div>
+            {/if}
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    class="btn-secondary text-xs py-1.5 px-4 rounded-xl"
+                    onclick={() => pkModal.closeModal()}
+                >
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    class="btn-primary text-xs py-1.5 px-5 rounded-xl flex items-center gap-1.5"
+                    onclick={() => applyPk()}
+                >
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>{isEditingPk ? "Mettre à jour le repère" : "Insérer le repère"}</span>
+                </button>
+            </div>
         </div>
     {/snippet}
 </Modal>
@@ -1172,6 +1403,11 @@
         color: #adb5bd;
         pointer-events: none;
         height: 0;
+    }
+
+    :global(.ProseMirror .pk-badge.ProseMirror-selectednode) {
+        outline: 2px solid var(--primary, #d97706);
+        outline-offset: 2px;
     }
 
     :global(.ProseMirror figure[data-layout="left"]) {
@@ -1198,7 +1434,15 @@
         clear: both;
         text-align: center;
     }
-    :global(.ProseMirror figure img) {
+    :global(.ProseMirror figure.ProseMirror-selectednode img),
+    :global(.ProseMirror figure.ProseMirror-selectednode video) {
+        outline: 3px solid var(--primary, #d97706);
+        outline-offset: 2px;
+    }
+    :global(.ProseMirror figure img),
+    :global(.ProseMirror figure video) {
         border-radius: 0.75rem;
+        height: auto;
+        max-width: 100%;
     }
 </style>

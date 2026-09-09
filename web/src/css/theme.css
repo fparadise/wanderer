@@ -1,64 +1,64 @@
 .light {
-    --primary: 37, 99, 235;
-    --primary-hover: 29, 78, 216;
-    --secondary-hover: 241, 245, 249;
-    --secondary-hover-inverse: 15, 23, 42;
+    --primary: 194, 65, 12;     /* #C2410C Terracotta / Terre cuite chaleureuse */
+    --primary-hover: 154, 52, 18; /* #9A3412 Terracotta foncée */
+    --secondary-hover: 245, 240, 232; /* Sable doux */
+    --secondary-hover-inverse: 28, 25, 23;
 
-    --background: 243, 245, 249; /* #F3F5F9 Canvas ardoise clair technique */
-    --surface: 255, 255, 255;    /* #FFFFFF Cartes, modales et surfaces en blanc pur */
-    --background-inverse: 15, 23, 42;
+    --background: 250, 247, 242; /* #FAF7F2 Papier parchemin / lin chaud */
+    --surface: 255, 255, 255;    /* #FFFFFF Cartes blanc pur surélevées */
+    --background-inverse: 28, 25, 23;
 
-    --content: 15, 23, 42;
+    --content: 28, 25, 23;       /* #1C1917 Encre bistre / Stone 900 */
     --content-inverse: 255, 255, 255;
 
     --input-background: 255, 255, 255;
     --input-background-error: 254, 242, 242;
-    --input-border: 226, 232, 240;
-    --input-border-focus: 37, 99, 235;
-    --input-ring: 191, 219, 254;
+    --input-border: 231, 226, 216; /* Pierre claire / sable */
+    --input-border-focus: 194, 65, 12;
+    --input-ring: 254, 215, 170;   /* Voile pêche/ocre doux */
 
-    --toggle-active: 37, 99, 235;
+    --toggle-active: 194, 65, 12;
 
     --menu-background: 255, 255, 255;
-    --menu-item-background-hover: 241, 245, 249;
-    --menu-item-background-focus: 226, 232, 240;
+    --menu-item-background-hover: 245, 240, 232;
+    --menu-item-background-focus: 235, 229, 218;
 
-    --footer-background: 15, 23, 42;
+    --footer-background: 28, 25, 23; /* Bistre profond terre d'ombre */
 
-    --separator: 226, 232, 240;
+    --separator: 231, 226, 216;
 
     background: rgba(var(--background));
     color: rgba(var(--content));
 }
 
 .dark {
-    --primary: 59, 130, 246;
-    --primary-hover: 37, 99, 235;
-    --secondary-hover: 30, 41, 59;
-    --secondary-hover-inverse: 241, 245, 249;
+    --primary: 251, 146, 60;     /* #FB923C Ambre terracotta lumineuse */
+    --primary-hover: 249, 115, 22; /* #F97316 */
+    --secondary-hover: 41, 37, 34; /* Stone 800 chaud */
+    --secondary-hover-inverse: 245, 240, 232;
 
-    --background: 11, 15, 25;  /* #0B0F19 Nuit alpine profonde */
-    --surface: 20, 27, 44;     /* #141B2C Cartes et surfaces surélevées */
-    --background-inverse: 255, 255, 255;
+    --background: 23, 21, 19;    /* #171513 Nuit feu de camp / basalte chaud */
+    --surface: 33, 30, 27;       /* #211E1B Cartes et surfaces surélevées */
+    --background-inverse: 250, 247, 242;
 
-    --content: 248, 250, 252;
-    --content-inverse: 15, 23, 42;
+    --content: 245, 245, 244;    /* #F5F5F4 Blanc pierreux Stone 100 */
+    --content-inverse: 28, 25, 23;
 
-    --input-background: 26, 35, 56;
+    --input-background: 38, 34, 30;
     --input-background-error: 76, 17, 17;
-    --input-border: 51, 65, 85;
-    --input-border-focus: 96, 165, 250;
-    --input-ring: 59, 130, 246;
+    --input-border: 68, 62, 56;
+    --input-border-focus: 251, 146, 60;
+    --input-ring: 249, 115, 22;
 
-    --toggle-active: 59, 130, 246;
+    --toggle-active: 251, 146, 60;
 
-    --menu-background: 20, 27, 44;
-    --menu-item-background-hover: 30, 41, 59;
-    --menu-item-background-focus: 51, 65, 85;
+    --menu-background: 33, 30, 27;
+    --menu-item-background-hover: 45, 41, 37;
+    --menu-item-background-focus: 68, 62, 56;
 
-    --footer-background: 8, 11, 19;
+    --footer-background: 15, 14, 13;
 
-    --separator: 30, 41, 59;
+    --separator: 45, 41, 37;
 
     background: rgba(var(--background));
     color: rgba(var(--content));

@@ -372,6 +372,7 @@
             );
         }
 
+        updateVisibleArticles();
         setTimeout(() => {
             updateVisibleArticles();
         }, 150);

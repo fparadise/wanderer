@@ -19,7 +19,6 @@
     import { getFileURL, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
-    import JSZip from "jszip";
     import { type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
@@ -802,6 +801,7 @@
                     });
                     saveAs(blob, `${eTrail.name}.${exportSettings.fileFormat}`);
                 } else {
+                    const JSZip = (await import("jszip")).default;
                     const zip = new JSZip();
                     zip.file(
                         `${eTrail.name}.${exportSettings.fileFormat}`,

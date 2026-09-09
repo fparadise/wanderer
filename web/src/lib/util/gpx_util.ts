@@ -12,7 +12,6 @@ import { trails_show } from "$lib/stores/trail_store";
 import FitParser from "$lib/vendor/fit-parser/fit_parser";
 import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
 import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'geojson';
-import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
 import { icons } from "./icon_util";
@@ -182,10 +181,11 @@ export function fromKML(kmlData: string) {
 }
 
 export async function fromKMZ(kmzData: ArrayBuffer) {
-    const zip = new JSZip()
-    const zipContents = await zip.loadAsync(kmzData)
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    const zipContents = await zip.loadAsync(kmzData);
     const kmlFile = await zip.file('doc.kml')?.async('string');
-    return fromKML(kmlFile ?? "")
+    return fromKML(kmlFile ?? "");
 }
 
 export function fromTCX(tcxData: string) {

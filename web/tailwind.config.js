@@ -32,8 +32,8 @@ export default {
       },
       fontFamily: {
         'sans': ['"Plus Jakarta Sans"', 'IBMPlexSans', 'system-ui', '-apple-system', 'sans-serif'],
-        'serif': ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
-        'brand': ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
+        'serif': ['"Newsreader"', 'Georgia', 'serif'],
+        'brand': ['"Newsreader"', 'Georgia', 'serif'],
       },
     },
   },

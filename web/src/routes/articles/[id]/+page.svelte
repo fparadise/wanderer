@@ -4,7 +4,7 @@
     import { RADIUS } from "$lib/config/design_system";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import { getFileURL, isVideoURL } from "$lib/util/file_util";
     import { formatDistance, formatElevation } from "$lib/util/format_util";
     import {
         parseTrackPoints,
@@ -30,6 +30,21 @@
     import type { PageData } from "./$types";
     import * as M from "maplibre-gl";
     import { onDestroy } from "svelte";
+
+    // Safeguard MapLibre Marker against internal _updateOpacity crash when marker is removed
+    if (typeof window !== "undefined" && (M as any).Marker) {
+        const MarkerProto = (M as any).Marker.prototype;
+        if (MarkerProto && !MarkerProto.__opacityPatched) {
+            const origUpdateOpacity = MarkerProto._updateOpacity;
+            if (typeof origUpdateOpacity === "function") {
+                MarkerProto._updateOpacity = function (force?: boolean) {
+                    if (!this._map || !this._map.transform) return;
+                    return origUpdateOpacity.call(this, force);
+                };
+                MarkerProto.__opacityPatched = true;
+            }
+        }
+    }
 
     let { data }: { data: PageData } = $props();
 
@@ -112,6 +127,11 @@
 
     function toggleFullscreen() {
         isMapFullscreen = !isMapFullscreen;
+        if (isMapFullscreen) {
+            (map as any)?.cooperativeGestures?.disable();
+        } else {
+            (map as any)?.cooperativeGestures?.enable();
+        }
         setTimeout(() => {
             map?.resize();
         }, 80);
@@ -883,15 +903,15 @@
 
     $effect(() => {
         if (typeof window === "undefined" || !mapAnchorEl) return;
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                const isPast = entry.boundingClientRect.bottom < 0;
-                showFloatingFab = isPast && !entry.isIntersecting;
-            },
-            { threshold: 0 }
-        );
-        observer.observe(mapAnchorEl);
-        return () => observer.disconnect();
+        const handleScroll = () => {
+            if (!mapAnchorEl) return;
+            const rect = mapAnchorEl.getBoundingClientRect();
+            // Le FAB apparait dès que le haut de la section carte commence à sortir de l'écran
+            showFloatingFab = rect.top < -120;
+        };
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        handleScroll();
+        return () => window.removeEventListener("scroll", handleScroll);
     });
 
     onDestroy(() => {
@@ -1145,6 +1165,14 @@
                             onfullscreen={toggleFullscreen}
                             showStyleSwitcher={true}
                             fitAllTrails={true}
+                            mapOptions={{
+                                cooperativeGestures: true,
+                                locale: {
+                                    'CooperativeGesturesHandler.WindowsHelpText': 'Utilisez Ctrl + défilement pour zoomer sur la carte',
+                                    'CooperativeGesturesHandler.MacHelpText': 'Utilisez ⌘ + défilement pour zoomer sur la carte',
+                                    'CooperativeGesturesHandler.MobileHelpText': 'Utilisez deux doigts pour déplacer la carte',
+                                }
+                            }}
                         />
                     </div>
                 </div>
@@ -1205,11 +1233,16 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <span class="text-xs font-bold uppercase tracking-wider text-primary">Galerie d'expédition</span>
-                        <h3 class="text-2xl font-bold font-serif text-content">Photos de l'itinéraire</h3>
+                        <h3 class="text-2xl font-bold font-serif text-content">Photos & Vidéos du parcours</h3>
                     </div>
-                    <span class="text-xs text-content/70">
-                        {aggregatedPhotos.length} photos disponibles
-                    </span>
+                    <button
+                        type="button"
+                        onclick={() => gallery?.openGallery(0)}
+                        class="text-xs text-content/70 hover:text-primary transition flex items-center gap-1.5 cursor-pointer font-medium bg-surface/80 hover:bg-surface border border-input-border px-3 py-1.5 rounded-full shadow-2xs"
+                    >
+                        <i class="fa-solid fa-images text-xs text-primary"></i>
+                        <span>{aggregatedPhotos.length} média{aggregatedPhotos.length > 1 ? 's' : ''}</span>
+                    </button>
                 </div>
 
                 <PhotoGallery
@@ -1217,58 +1250,90 @@
                     bind:this={gallery}
                 />
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {#each aggregatedPhotos as photo, idx}
+                <!-- Wanderer-style Photo Mosaic (up to 3 items: 1 big left, 2 stacked right) -->
+                <div
+                    class="grid gap-1.5 {aggregatedPhotos.length > 1
+                        ? aggregatedPhotos.length === 2
+                            ? 'grid-cols-2'
+                            : 'grid-cols-[8fr_5fr]'
+                        : 'grid-cols-1'} h-72 sm:h-96 rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer shadow-xs border border-input-border/70 bg-neutral-900"
+                >
+                    {#each aggregatedPhotos.slice(0, 3) as photo, idx}
                         <div
-                            class="group relative aspect-4/3 rounded-2xl overflow-hidden border border-input-border shadow-xs bg-neutral-900 cursor-pointer"
+                            class="group relative w-full h-full overflow-hidden bg-neutral-900 select-none {idx === 0 && aggregatedPhotos.length > 2 ? 'row-span-2' : ''}"
                             onclick={() => gallery?.openGallery(idx)}
                             role="button"
                             tabindex="0"
                             onkeydown={(e) => { if (e.key === 'Enter') gallery?.openGallery(idx); }}
                         >
-                            <img
-                                src={photo.url}
-                                alt={photo.caption || photo.stageLabel}
-                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
+                            {#if isVideoURL(photo.url)}
+                                <!-- svelte-ignore a11y_media_has_caption -->
+                                <video
+                                    controls={false}
+                                    loop
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    onmouseenter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+                                    onmouseleave={(e) => (e.currentTarget as HTMLVideoElement).pause()}
+                                    src={photo.url}
+                                ></video>
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-40 transition-opacity">
+                                    <span class="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-sm shadow-md">
+                                        <i class="fa-solid fa-play ml-0.5"></i>
+                                    </span>
+                                </div>
+                            {:else}
+                                <img
+                                    src={photo.url}
+                                    alt={photo.caption || photo.stageLabel}
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                            {/if}
 
-                            <!-- Top Badges -->
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
-                                <span class="bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            <!-- Badges (Stage & KM) -->
+                            <div class="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex flex-wrap items-center gap-1 z-10 pointer-events-none">
+                                <span class="bg-black/70 backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full">
                                     {photo.stageLabel}
                                 </span>
                                 {#if photo.pkKm !== undefined}
-                                    <span class="bg-primary/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                        <i class="fa-solid fa-location-dot text-[8px]"></i>
+                                    <span class="bg-primary/90 text-white text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <i class="fa-solid fa-location-dot text-[7px] sm:text-[8px]"></i>
                                         km {photo.pkKm}
                                     </span>
                                 {/if}
                             </div>
 
-                            <!-- Bottom caption & actions on hover -->
-                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between gap-2">
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-xs text-white font-medium truncate">{photo.caption}</p>
-                                    <span class="text-[10px] text-white/80 inline-flex items-center gap-1 mt-0.5">
-                                        <i class="fa-solid fa-expand text-[9px]"></i>
-                                        Plein écran
-                                    </span>
+                            <!-- "More photos" overlay on the 3rd tile if more than 3 photos exist -->
+                            {#if idx === 2 && aggregatedPhotos.length > 3}
+                                <div class="absolute inset-0 bg-black/60 hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white pointer-events-none z-10">
+                                    <span class="text-2xl sm:text-3xl font-bold tracking-tight">+{aggregatedPhotos.length - 3}</span>
+                                    <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider mt-1 text-white/90">Toutes les photos</span>
                                 </div>
-                                {#if photo.lat !== undefined && photo.lon !== undefined}
-                                    <button
-                                        type="button"
-                                        onclick={(e) => {
-                                            e.stopPropagation();
-                                            focusPhotoOnMap(photo);
-                                        }}
-                                        title="Localiser sur la carte"
-                                        class="shrink-0 text-[10px] text-white/90 hover:text-white bg-white/20 hover:bg-primary backdrop-blur-xs px-2 py-1 rounded-md flex items-center gap-1 transition-colors cursor-pointer"
-                                    >
-                                        <i class="fa-solid fa-location-dot text-[9px]"></i>
-                                        Carte
-                                    </button>
-                                {/if}
-                            </div>
+                            {:else}
+                                <!-- Bottom caption & map button (visible on mobile, hover on desktop) -->
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 sm:p-3 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-end justify-between gap-1.5 z-10">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[11px] sm:text-xs text-white font-medium truncate">{photo.caption}</p>
+                                        <span class="text-[9px] sm:text-[10px] text-white/80 hidden sm:inline-flex items-center gap-1 mt-0.5">
+                                            <i class="fa-solid fa-expand text-[9px]"></i>
+                                            Plein écran
+                                        </span>
+                                    </div>
+                                    {#if photo.lat !== undefined && photo.lon !== undefined}
+                                        <button
+                                            type="button"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                focusPhotoOnMap(photo);
+                                            }}
+                                            title="Localiser sur la carte"
+                                            class="shrink-0 text-[9px] sm:text-[10px] text-white/90 hover:text-white bg-white/20 hover:bg-primary backdrop-blur-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                        >
+                                            <i class="fa-solid fa-location-dot text-[8px] sm:text-[9px]"></i>
+                                            Carte
+                                        </button>
+                                    {/if}
+                                </div>
+                            {/if}
                         </div>
                     {/each}
                 </div>
@@ -1332,10 +1397,10 @@
         clear: both;
         text-align: center;
     }
-    :global(.article-body figure[data-layout="full"] img) {
+    :global(.article-body figure[data-layout="full"] img),
+    :global(.article-body figure[data-layout="full"] video) {
         width: 100%;
-        max-height: 600px;
-        object-fit: cover;
+        height: auto;
         border-radius: 1.25rem;
         margin: 0 auto;
     }
@@ -1346,9 +1411,10 @@
         clear: both;
         text-align: center;
     }
-    :global(.article-body figure[data-layout="center"] img) {
-        max-height: 520px;
-        object-fit: cover;
+    :global(.article-body figure[data-layout="center"] img),
+    :global(.article-body figure[data-layout="center"] video) {
+        max-width: 100%;
+        height: auto;
         border-radius: 1.25rem;
         margin: 0 auto;
     }
@@ -1359,8 +1425,10 @@
         float: left;
         clear: left;
     }
-    :global(.article-body figure[data-layout="left"] img) {
+    :global(.article-body figure[data-layout="left"] img),
+    :global(.article-body figure[data-layout="left"] video) {
         width: 100%;
+        height: auto;
         border-radius: 1rem;
     }
 
@@ -1370,8 +1438,10 @@
         float: right;
         clear: right;
     }
-    :global(.article-body figure[data-layout="right"] img) {
+    :global(.article-body figure[data-layout="right"] img),
+    :global(.article-body figure[data-layout="right"] video) {
         width: 100%;
+        height: auto;
         border-radius: 1rem;
     }
 
@@ -1398,5 +1468,24 @@
     }
     :global(.maplibregl-popup) {
         z-index: 40 !important;
+    }
+    :global(.maplibregl-cooperative-gesture-screen) {
+        background: rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 50 !important;
+    }
+    :global(.maplibregl-cooperative-gesture-screen .maplibregl-desktop-message),
+    :global(.maplibregl-cooperative-gesture-screen .maplibregl-mobile-message) {
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #ffffff;
+        text-align: center;
+        letter-spacing: 0.01em;
     }
 </style>

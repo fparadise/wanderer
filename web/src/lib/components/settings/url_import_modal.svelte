@@ -6,10 +6,8 @@
         uploadStore,
         type Upload,
     } from "$lib/stores/upload_store.svelte";
-    import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
-    import { z } from "zod";
     import TextField from "../base/text_field.svelte";
     import Button from "../base/button.svelte";
 
@@ -28,11 +26,15 @@
         url: string;
     }>({
         initialValues: { url: "" },
-        extend: validator({
-            schema: z.object({
-                url: z.string().min(1, "required").url("not-a-valid-url"),
-            }),
-        }),
+        validate: (values) => {
+            const errs: { url?: string[] } = {};
+            if (!values.url || values.url.trim() === "") {
+                errs.url = ["required"];
+            } else if (!values.url.startsWith("http://") && !values.url.startsWith("https://")) {
+                errs.url = ["not-a-valid-url"];
+            }
+            return errs;
+        },
         onSubmit: async (form) => {
             try {
                 loading = true;

@@ -12,7 +12,6 @@
     import { getFileURL, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
-    import JSZip from "jszip";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
 
@@ -70,6 +69,7 @@
         try {
             const trails = await trails_index(-1);
 
+            const JSZip = (await import("jszip")).default;
             const zip = new JSZip();
 
             for (const trail of trails) {

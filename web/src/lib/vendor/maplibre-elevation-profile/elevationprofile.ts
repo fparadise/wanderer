@@ -649,7 +649,6 @@ export class ElevationProfile {
                             scale.ticks = ticks;
                         },
                         ticks: {
-                            stepSize: 0.1,
                             align: "inner",
                             display: this.settings.displayDistanceLabels,
                             color: this.settings.labelColor,

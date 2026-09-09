@@ -34,8 +34,8 @@
     --color-separator: rgba(var(--separator));
 
     --font-sans: "Plus Jakarta Sans", "IBMPlexSans", system-ui, -apple-system, sans-serif;
-    --font-serif: "Bricolage Grotesque", system-ui, sans-serif;
-    --font-brand: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-serif: "Newsreader", Georgia, serif;
+    --font-brand: "Newsreader", Georgia, serif;
 
     --fa-width: auto;
 }

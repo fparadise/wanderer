@@ -31,14 +31,59 @@
     let markerEntries: Map<string, ArticleMarkerEntry> = new Map();
     let currentPopup: M.Popup | null = null;
 
-    // React to changes in articles or map
+    function forceUpdateMarkers() {
+        for (const entry of markerEntries.values()) {
+            (entry.marker as any)._update?.();
+        }
+    }
+
+    // React to changes in articles or map with robust lifecycle re-anchoring
     $effect(() => {
         if (!map) {
             clearMarkers();
             return;
         }
 
+        const onMapStateChange = () => {
+            forceUpdateMarkers();
+        };
+
+        map.on("load", onMapStateChange);
+        map.on("idle", onMapStateChange);
+        map.on("resize", onMapStateChange);
+        map.on("render", onMapStateChange);
+        map.on("styledata", onMapStateChange);
+        map.on("sourcedata", onMapStateChange);
+
         syncMarkers(articles);
+
+        // Multiple microtask / rAF passes to guarantee correct position
+        // as DOM styles, fonts, and map viewport dimensions settle.
+        requestAnimationFrame(() => {
+            forceUpdateMarkers();
+            requestAnimationFrame(forceUpdateMarkers);
+        });
+        const t1 = setTimeout(forceUpdateMarkers, 50);
+        const t2 = setTimeout(forceUpdateMarkers, 200);
+        const t3 = setTimeout(forceUpdateMarkers, 600);
+
+        if (typeof document !== "undefined" && document.fonts) {
+            document.fonts.ready.then(forceUpdateMarkers);
+        }
+
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            clearTimeout(t3);
+            if (map) {
+                map.off("load", onMapStateChange);
+                map.off("idle", onMapStateChange);
+                map.off("resize", onMapStateChange);
+                map.off("render", onMapStateChange);
+                map.off("styledata", onMapStateChange);
+                map.off("sourcedata", onMapStateChange);
+            }
+        };
     });
 
     // React to hover changes
@@ -86,6 +131,7 @@
                 // Update position if changed
                 const existing = markerEntries.get(article.id)!;
                 existing.marker.setLngLat([geo.lon, geo.lat]);
+                (existing.marker as any)._update?.();
                 continue;
             }
 
@@ -101,7 +147,7 @@
                 : null;
 
             const thumbHtml = thumbUrl
-                ? `<img src="${thumbUrl}" alt="" class="super-pin-thumb" />`
+                ? `<img src="${thumbUrl}" alt="" width="32" height="32" loading="eager" class="super-pin-thumb" />`
                 : `<span class="super-pin-thumb-placeholder"><i class="fa-solid fa-book-open"></i></span>`;
 
             // Super Pin DOM structure:
@@ -136,6 +182,21 @@
                 .setLngLat([geo.lon, geo.lat])
                 .setPopup(popup)
                 .addTo(map);
+
+            // Listen for thumbnail image load to immediately re-anchor once layout dimensions resolve
+            const img = pinEl.querySelector<HTMLImageElement>("img.super-pin-thumb");
+            if (img) {
+                if (img.complete) {
+                    (marker as any)._update?.();
+                } else {
+                    img.addEventListener("load", () => {
+                        (marker as any)._update?.();
+                    }, { once: true });
+                    img.addEventListener("error", () => {
+                        (marker as any)._update?.();
+                    }, { once: true });
+                }
+            }
 
             // Handle hover & click
             pinEl.addEventListener("mouseenter", () => {
@@ -296,13 +357,17 @@
      * placing the entire pin strictly ABOVE the start point.
      */
     :global(.super-pin-container) {
-        position: relative;
+        position: absolute !important;
+        top: 0;
+        left: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         width: max-content;
         max-width: 290px;
         pointer-events: auto;
+        user-select: none;
+        will-change: transform;
         /* Critical: DO NOT set CSS transform here to avoid overriding MapLibre's marker placement */
     }
 
@@ -323,22 +388,32 @@
         transform-origin: bottom center;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
         max-width: 285px;
+        min-height: 44px;
         box-sizing: border-box;
     }
 
     :global(.super-pin-thumb) {
         width: 32px;
         height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        max-width: 32px;
+        max-height: 32px;
         border-radius: 9999px;
         object-fit: cover;
         flex-shrink: 0;
         border: 1.5px solid rgb(var(--primary));
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        box-sizing: border-box;
     }
 
     :global(.super-pin-thumb-placeholder) {
         width: 32px;
         height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        max-width: 32px;
+        max-height: 32px;
         border-radius: 9999px;
         background-color: rgba(var(--primary), 0.15);
         color: rgb(var(--primary));
@@ -348,6 +423,7 @@
         font-size: 13px;
         flex-shrink: 0;
         border: 1.5px solid rgba(var(--primary), 0.4);
+        box-sizing: border-box;
     }
 
     :global(.super-pin-content) {

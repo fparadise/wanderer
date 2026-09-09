@@ -27,7 +27,9 @@
         return explicitFeatured || articles[0];
     });
     let recentTrails = $derived(data.recentTrails || []);
-    let totalTrailsCount = $derived(data.totalTrailsCount ?? (recentTrails.length || 0));
+    let totalTrailsCount = $derived(
+        data.totalTrailsCount ?? (recentTrails.length || 0),
+    );
     let registeredUsersCount = $derived(data.registeredUsersCount ?? 0);
     let editorialTags = $derived(data.editorialTags || []);
 
@@ -35,8 +37,10 @@
 
     let filteredArticles = $derived(
         selectedTagFilter
-            ? articles.filter((a) => (a.tags || []).includes(selectedTagFilter!))
-            : articles
+            ? articles.filter((a) =>
+                  (a.tags || []).includes(selectedTagFilter!),
+              )
+            : articles,
     );
 
     // Collect all available tags across articles for quick filtering
@@ -52,7 +56,9 @@
         const matchedEditorial = editorialTags
             .map((t) => t.name)
             .filter((name) => articleTagsSet.has(name));
-        const others = allArticleTags.filter((t) => !matchedEditorial.includes(t));
+        const others = allArticleTags.filter(
+            (t) => !matchedEditorial.includes(t),
+        );
         return [...matchedEditorial, ...others].slice(0, 8);
     });
 </script>
@@ -69,15 +75,25 @@
         </section>
     {:else}
         <!-- Fallback empty state if no articles exist yet -->
-        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-            <div class="max-w-xl mx-auto p-8 {RADIUS.card} border border-input-border bg-background shadow-xs space-y-4">
+        <section
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center"
+        >
+            <div
+                class="max-w-xl mx-auto p-8 {RADIUS.card} border border-input-border bg-background shadow-xs space-y-4"
+            >
                 <i class="fa-solid fa-book-open text-4xl text-primary"></i>
-                <h2 class="text-2xl font-serif font-bold text-content">Bienvenue dans le Magazine</h2>
+                <h2 class="text-2xl font-serif font-bold text-content">
+                    Bienvenue dans le Magazine
+                </h2>
                 <p class="text-sm text-content/70">
-                    Partagez vos voyages et expéditions en reliant vos traces GPS à des récits immersifs.
+                    Partagez vos voyages et expéditions en reliant vos traces
+                    GPS à des récits immersifs.
                 </p>
                 {#if $currentUser}
-                    <a href="/articles/new" class="btn-primary inline-flex items-center gap-2">
+                    <a
+                        href="/articles/new"
+                        class="btn-primary inline-flex items-center gap-2"
+                    >
                         <i class="fa-solid fa-feather"></i>
                         <span>Écrire le premier récit</span>
                     </a>
@@ -88,27 +104,49 @@
 
     <!-- 2. Main Magazine Stories (Full Width 3-column Grid) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-input-border">
+        <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-input-border"
+        >
             <div>
-                <span class="text-xs uppercase font-bold tracking-wider text-primary">Récits & Traces</span>
-                <h3 class="text-2xl sm:text-3xl font-serif font-bold text-content mt-0.5">Derniers récits d'aventures</h3>
+                <span
+                    class="text-xs uppercase font-bold tracking-wider text-primary"
+                    >Récits</span
+                >
+                <h3
+                    class="text-2xl sm:text-3xl font-serif font-bold text-content mt-0.5"
+                >
+                    Derniers récits d'aventures
+                </h3>
             </div>
 
             <!-- Tag Filter Pills -->
             {#if displayFilterTags.length > 0}
-                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                <div
+                    class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full"
+                >
                     <button
                         type="button"
-                        onclick={() => { selectedTagFilter = null; }}
-                        class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0 {selectedTagFilter === null ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background text-content/70 hover:text-content border-input-border'}"
+                        onclick={() => {
+                            selectedTagFilter = null;
+                        }}
+                        class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0 {selectedTagFilter ===
+                        null
+                            ? 'bg-primary text-white border-primary shadow-xs'
+                            : 'bg-background text-content/70 hover:text-content border-input-border'}"
                     >
                         Tous les récits
                     </button>
                     {#each displayFilterTags as tag}
                         <button
                             type="button"
-                            onclick={() => { selectedTagFilter = selectedTagFilter === tag ? null : tag; }}
-                            class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0 {selectedTagFilter === tag ? 'bg-primary text-white border-primary shadow-xs' : 'bg-background text-content/70 hover:text-content border-input-border'}"
+                            onclick={() => {
+                                selectedTagFilter =
+                                    selectedTagFilter === tag ? null : tag;
+                            }}
+                            class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0 {selectedTagFilter ===
+                            tag
+                                ? 'bg-primary text-white border-primary shadow-xs'
+                                : 'bg-background text-content/70 hover:text-content border-input-border'}"
                         >
                             {tag}
                         </button>
@@ -118,7 +156,9 @@
         </div>
 
         {#if filteredArticles.length === 0}
-            <p class="text-sm text-content/60 italic py-16 text-center bg-input-background/40 {RADIUS.card} border border-dashed border-input-border">
+            <p
+                class="text-sm text-content/60 italic py-16 text-center bg-input-background/40 {RADIUS.card} border border-dashed border-input-border"
+            >
                 Aucun récit ne correspond à ce filtre.
             </p>
         {:else}
@@ -134,25 +174,45 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div class="space-y-8">
             <!-- Map Banner with Community Stats Gateway -->
-            <div class="relative overflow-hidden {RADIUS.card} border border-input-border bg-gradient-to-br from-primary/5 via-background to-input-background p-6 sm:p-8 lg:p-10 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div
+                class="relative overflow-hidden {RADIUS.card} border border-input-border bg-gradient-to-br from-primary/5 via-background to-input-background p-6 sm:p-8 lg:p-10 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6"
+            >
                 <div class="relative z-10 max-w-xl space-y-3">
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-content/70">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-content/70"
+                    >
                         <span class="flex items-center gap-1.5 text-primary">
                             <i class="fa-solid fa-users text-xs"></i>
-                            <span>{registeredUsersCount} {registeredUsersCount > 1 ? 'utilisateurs inscrits' : 'utilisateur inscrit'}</span>
+                            <span
+                                >{registeredUsersCount}
+                                {registeredUsersCount > 1
+                                    ? "utilisateurs inscrits"
+                                    : "utilisateur inscrit"}</span
+                            >
                         </span>
                         <span class="text-content/30">·</span>
                         <span class="flex items-center gap-1.5 text-content/80">
-                            <i class="fa-solid fa-route text-xs text-primary"></i>
-                            <span>{totalTrailsCount} {totalTrailsCount > 1 ? 'itinéraires répertoriés' : 'itinéraire répertorié'}</span>
+                            <i class="fa-solid fa-route text-xs text-primary"
+                            ></i>
+                            <span
+                                >{totalTrailsCount}
+                                {totalTrailsCount > 1
+                                    ? "itinéraires répertoriés"
+                                    : "itinéraire répertorié"}</span
+                            >
                         </span>
                     </div>
 
-                    <h3 class="text-2xl sm:text-3xl font-serif font-bold text-content">
+                    <h3
+                        class="text-2xl sm:text-3xl font-serif font-bold text-content"
+                    >
                         Explorez la carte interactive
                     </h3>
                     <p class="text-sm text-content/75 leading-relaxed">
-                        Visualisez l'ensemble des traces enregistrées par la communauté, filtrez par massif ou discipline, et téléchargez les fichiers GPX pour vos prochaines sorties.
+                        Visualisez l'ensemble des traces enregistrées par la
+                        communauté, filtrez par thématiques ou discipline, et
+                        téléchargez les fichiers GPX pour vos prochaines
+                        sorties.
                     </p>
                 </div>
 
@@ -173,20 +233,36 @@
                 <div class="space-y-4">
                     <div class="flex items-center justify-between pb-1">
                         <div>
-                            <span class="text-xs uppercase font-bold tracking-wider text-primary">Activités récentes</span>
-                            <h4 class="text-lg font-serif font-bold text-content">Dernières sorties enregistrées sur le terrain</h4>
+                            <span
+                                class="text-xs uppercase font-bold tracking-wider text-primary"
+                                >Activités récentes</span
+                            >
+                            <h4
+                                class="text-lg font-serif font-bold text-content"
+                            >
+                                Dernières sorties enregistrées
+                            </h4>
                         </div>
-                        <a href="/map" class="text-xs text-primary hover:underline font-semibold flex items-center gap-1">
+                        <a
+                            href="/map"
+                            class="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                        >
                             <span>Voir toutes les traces</span>
                             <i class="fa-solid fa-arrow-right text-[10px]"></i>
                         </a>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
                         {#each recentTrails as trail (trail.id)}
-                            {@const authorHandle = trail.expand?.author?.preferred_username || trail.author}
+                            {@const authorHandle =
+                                trail.expand?.author?.preferred_username ||
+                                trail.author}
                             <a
-                                href="/trail/view/@{authorHandle}{trail.domain ? `@${trail.domain}` : ''}/{trail.id}"
+                                href="/trail/view/@{authorHandle}{trail.domain
+                                    ? `@${trail.domain}`
+                                    : ''}/{trail.id}"
                                 class="block h-full group transition-transform hover:-translate-y-1 duration-200"
                             >
                                 <TrailCard

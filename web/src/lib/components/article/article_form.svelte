@@ -7,7 +7,7 @@
     import { trails_show } from "$lib/stores/trail_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import { getFileURL, isVideoURL } from "$lib/util/file_util";
     import {
         EDITORIAL_TAG_CATEGORIES,
         TECHNICAL_DIFFICULTY_LEVELS,
@@ -442,18 +442,10 @@
 <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
     <!-- Top Header Bar -->
     <div class="flex items-center justify-between pb-6 border-b">
-        <div class="flex items-center gap-4">
-            <a href={cancelHref} class="btn-icon text-content/60 hover:text-content" title="Retour">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div>
-                <span class="text-xs uppercase font-bold tracking-widest text-primary">
-                    {mode === "edit" ? "Édition du récit" : "Studio Magazine"}
-                </span>
-                <h1 class="text-3xl font-serif font-bold text-content">
-                    {mode === "edit" ? "Modifier le récit" : "Rédiger un nouveau récit"}
-                </h1>
-            </div>
+        <div>
+            <h1 class="text-3xl font-serif font-bold text-content">
+                {mode === "edit" ? "Modifier le récit" : "Rédiger un nouveau récit"}
+            </h1>
         </div>
         <div class="flex items-center gap-3">
             <a href={cancelHref} class="btn-secondary text-sm">Annuler</a>
@@ -488,7 +480,7 @@
                     type="text"
                     bind:value={title}
                     placeholder="Ex: 4 jours en autonomie dans les grands espaces..."
-                    class="w-full text-2xl font-serif font-semibold px-4 py-3 rounded-xl border border-input-border bg-background text-content focus:ring-2 focus:ring-primary focus:outline-hidden transition-all"
+                    class="w-full text-2xl font-serif font-semibold px-4 py-3 rounded-xl border border-input-border bg-input-background text-content transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 shadow-xs"
                 />
             </div>
 
@@ -502,7 +494,7 @@
                     bind:value={intro}
                     rows="3"
                     placeholder="Une courte introduction évocatrice pour plonger le lecteur dans l'ambiance de l'aventure..."
-                    class="w-full text-base px-4 py-3 rounded-xl border border-input-border bg-background text-content focus:ring-2 focus:ring-primary focus:outline-hidden transition-all italic"
+                    class="w-full text-base px-4 py-3 rounded-xl border border-input-border bg-input-background text-content transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 italic shadow-xs"
                 ></textarea>
             </div>
 
@@ -525,7 +517,11 @@
                             {#each rawHeroImages as imgName, idx}
                                 {@const imgUrl = initialArticle ? getFileURL(initialArticle, imgName) : ""}
                                 <div class="relative aspect-video rounded-xl overflow-hidden border shadow-xs group bg-neutral-900">
-                                    <img src={imgUrl} alt="Photo existante" class="w-full h-full object-cover" />
+                                    {#if isVideoURL(imgUrl)}
+                                        <video src={imgUrl} class="w-full h-full object-cover" muted preload="metadata"></video>
+                                    {:else}
+                                        <img src={imgUrl} alt="Photo existante" class="w-full h-full object-cover" />
+                                    {/if}
                                     <button
                                         type="button"
                                         onclick={() => removeExistingHeroImage(imgName)}
@@ -545,7 +541,11 @@
                             <!-- Newly selected images -->
                             {#each heroPreviews as preview, idx}
                                 <div class="relative aspect-video rounded-xl overflow-hidden border shadow-xs group bg-neutral-900">
-                                    <img src={preview} alt="Nouvel aperçu" class="w-full h-full object-cover" />
+                                    {#if isVideoURL(preview)}
+                                        <video src={preview} class="w-full h-full object-cover" muted preload="metadata"></video>
+                                    {:else}
+                                        <img src={preview} alt="Nouvel aperçu" class="w-full h-full object-cover" />
+                                    {/if}
                                     <button
                                         type="button"
                                         onclick={() => removeNewHeroImage(idx)}
@@ -611,11 +611,25 @@
                                     ondragend={handleDragEnd}
                                     class="group relative aspect-square rounded-xl overflow-hidden border border-input-border bg-neutral-900 shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none {draggedPhotoIdx === idx ? 'opacity-40 ring-2 ring-primary scale-95' : ''}"
                                 >
-                                    <img
-                                        src={photo.url}
-                                        alt={photo.caption || photo.sourceTrailName}
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
-                                    />
+                                    {#if isVideoURL(photo.url)}
+                                        <video
+                                            src={photo.url}
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                                            muted
+                                            preload="metadata"
+                                        ></video>
+                                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <span class="w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white text-[10px]">
+                                                <i class="fa-solid fa-play"></i>
+                                            </span>
+                                        </div>
+                                    {:else}
+                                        <img
+                                            src={photo.url}
+                                            alt={photo.caption || photo.sourceTrailName}
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                                        />
+                                    {/if}
 
                                     <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[10px] font-bold text-white shadow-xs">
                                         #{idx + 1}
@@ -709,16 +723,14 @@
                     </label>
                 </div>
 
-                <div class="border border-input-border rounded-2xl bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary">
-                    <Editor
-                        bind:this={editorComponent}
-                        bind:value={body}
-                        mediaItems={activityPhotos}
-                        trails={loadedTrails}
-                        placeholder="Racontez votre expérience, partagez vos impressions, les conditions de sentier, les moments forts..."
-                        extraClasses="min-h-[400px] p-4 prose dark:prose-invert max-w-none focus:outline-hidden"
-                    />
-                </div>
+                <Editor
+                    bind:this={editorComponent}
+                    bind:value={body}
+                    mediaItems={activityPhotos}
+                    trails={loadedTrails}
+                    placeholder="Racontez votre expérience, partagez vos impressions, les conditions de sentier, les moments forts..."
+                    extraClasses="min-h-[400px] p-4"
+                />
             </div>
 
             <!-- Editorial Tags Selector -->
@@ -727,10 +739,10 @@
                     <div>
                         <h3 class="font-serif font-bold text-base text-content flex items-center gap-2">
                             <i class="fa-solid fa-tags text-primary"></i>
-                            Étiquettes & Ambiance éditoriale
+                            Thématiques & Tags phares
                         </h3>
                         <p class="text-xs text-content/70 mt-0.5">
-                            Sélectionnez les tags qui caractérisent votre aventure pour guider les lecteurs.
+                            Sélectionnez les mots-clés qui caractérisent votre aventure pour guider les lecteurs.
                         </p>
                     </div>
                 </div>
@@ -807,7 +819,9 @@
                                 >
                                     <span class="font-medium text-content">{suggestion.name}</span>
                                     {#if suggestion.editorial}
-                                        <span class="text-[10px] uppercase font-bold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10">Éditorial</span>
+                                        <span class="text-[10px] uppercase font-bold text-primary px-1.5 py-0.5 rounded-sm bg-primary/10 flex items-center gap-1">
+                                            <i class="fa-solid fa-star text-[8px]"></i> Recommandé
+                                        </span>
                                     {/if}
                                 </button>
                             {/each}
@@ -819,7 +833,7 @@
                 <div class="space-y-3 pt-2 border-t border-input-border">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-content/70">
-                            Tags éditoriaux recommandés
+                            Thématiques phares suggérées
                         </span>
                         <span class="text-[11px] text-content/50">Cliquer pour activer/désactiver</span>
                     </div>
@@ -850,7 +864,7 @@
                         <div class="space-y-1.5">
                             <span class="text-[11px] font-bold text-content/70 flex items-center gap-1.5">
                                 <i class="fa-solid fa-star text-[10px] text-primary"></i>
-                                <span>Autres tags éditoriaux</span>
+                                <span>Autres thématiques phares</span>
                             </span>
                             <div class="flex flex-wrap gap-1.5">
                                 {#each customEditorialTags as tag}

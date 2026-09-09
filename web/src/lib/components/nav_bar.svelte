@@ -238,9 +238,7 @@
 </Drawer>
 
 <nav
-    class="flex justify-between items-center p-6 {page.url.pathname === '/'
-        ? 'sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-input-border/60 shadow-2xs'
-        : ''}"
+    class="flex justify-between items-center p-4 lg:p-6 sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-input-border/60 shadow-2xs transition-colors"
 >
     <a href="/" class="text-2xl font-serif font-black tracking-tight text-content select-none hover:opacity-90 transition-opacity">
         TraceClub
