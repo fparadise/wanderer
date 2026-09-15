@@ -231,6 +231,7 @@
         mediaItems?: ArticleMediaItem[];
         trails?: Trail[];
         stickyToolbar?: boolean;
+        articleMode?: boolean;
     }
 
     let {
@@ -242,8 +243,13 @@
         searchListPosition = "absolute",
         mediaItems = [],
         trails = [],
-        stickyToolbar = true,
+        stickyToolbar = false,
+        articleMode = false,
     }: Props = $props();
+
+    let isArticleMode = $derived(
+        articleMode || stickyToolbar || (mediaItems && mediaItems.length > 0) || (trails && trails.length > 0)
+    );
 
     const fontSizes: SelectItem[] = [
         { text: $_("paragraph"), value: "p" },
@@ -791,35 +797,37 @@
     {/if}
 
     <div class="editor-container border border-input-border rounded-xl bg-input-background overflow-visible focus-within:border-input-border-focus transition-colors">
-        <!-- Sticky Toolbar -->
+        <!-- Toolbar -->
         <div
             class="flex flex-wrap items-center py-2 px-3 gap-y-2 border-b border-input-border rounded-t-xl bg-surface/95 backdrop-blur-md z-30 transition-all {stickyToolbar ? 'sticky top-[72px] lg:top-[88px] shadow-2xs' : ''}"
         >
-            <!-- History: Undo / Redo -->
-            <div class="flex gap-1 border-r border-input-border pr-2">
-                <button
-                    type="button"
-                    class="btn-icon"
-                    disabled={!activeState.canUndo}
-                    class:opacity-30={!activeState.canUndo}
-                    onclick={() => editor?.chain().focus().undo().run()}
-                    title="Annuler (Ctrl+Z)"
-                    aria-label="Annuler"
-                >
-                    <i class="fas fa-rotate-left"></i>
-                </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    disabled={!activeState.canRedo}
-                    class:opacity-30={!activeState.canRedo}
-                    onclick={() => editor?.chain().focus().redo().run()}
-                    title="Rétablir (Ctrl+Y)"
-                    aria-label="Rétablir"
-                >
-                    <i class="fas fa-rotate-right"></i>
-                </button>
-            </div>
+            <!-- History: Undo / Redo (only in article mode) -->
+            {#if isArticleMode}
+                <div class="flex gap-1 border-r border-input-border pr-2">
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        disabled={!activeState.canUndo}
+                        class:opacity-30={!activeState.canUndo}
+                        onclick={() => editor?.chain().focus().undo().run()}
+                        title="Annuler (Ctrl+Z)"
+                        aria-label="Annuler"
+                    >
+                        <i class="fas fa-rotate-left"></i>
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        disabled={!activeState.canRedo}
+                        class:opacity-30={!activeState.canRedo}
+                        onclick={() => editor?.chain().focus().redo().run()}
+                        title="Rétablir (Ctrl+Y)"
+                        aria-label="Rétablir"
+                    >
+                        <i class="fas fa-rotate-right"></i>
+                    </button>
+                </div>
+            {/if}
 
             <!-- Paragraph & Headings using Wanderer's native Select -->
             <div class="mr-2 border-r border-input-border pr-2">
@@ -876,18 +884,20 @@
                 >
                     <i class="fas fa-strikethrough"></i>
                 </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    class:bg-primary={activeState.code}
-                    class:text-white={activeState.code}
-                    class:dark:text-stone-900={activeState.code}
-                    onclick={() => editor?.chain().focus().toggleCode().run()}
-                    title="Code en ligne"
-                    aria-label="Code en ligne"
-                >
-                    <i class="fas fa-code"></i>
-                </button>
+                {#if isArticleMode}
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        class:bg-primary={activeState.code}
+                        class:text-white={activeState.code}
+                        class:dark:text-stone-900={activeState.code}
+                        onclick={() => editor?.chain().focus().toggleCode().run()}
+                        title="Code en ligne"
+                        aria-label="Code en ligne"
+                    >
+                        <i class="fas fa-code"></i>
+                    </button>
+                {/if}
             </div>
 
             <!-- Lists & Blocks -->
@@ -928,27 +938,29 @@
                 >
                     <i class="fas fa-quote-right"></i>
                 </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    class:bg-primary={activeState.codeBlock}
-                    class:text-white={activeState.codeBlock}
-                    class:dark:text-stone-900={activeState.codeBlock}
-                    onclick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                    title="Bloc de code"
-                    aria-label="Bloc de code"
-                >
-                    <i class="fas fa-file-code"></i>
-                </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    onclick={() => editor?.chain().focus().setHorizontalRule().run()}
-                    title="Ligne de séparation"
-                    aria-label="Ligne de séparation"
-                >
-                    <i class="fas fa-minus"></i>
-                </button>
+                {#if isArticleMode}
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        class:bg-primary={activeState.codeBlock}
+                        class:text-white={activeState.codeBlock}
+                        class:dark:text-stone-900={activeState.codeBlock}
+                        onclick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                        title="Bloc de code"
+                        aria-label="Bloc de code"
+                    >
+                        <i class="fas fa-file-code"></i>
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        onclick={() => editor?.chain().focus().setHorizontalRule().run()}
+                        title="Ligne de séparation"
+                        aria-label="Ligne de séparation"
+                    >
+                        <i class="fas fa-minus"></i>
+                    </button>
+                {/if}
             </div>
 
             <!-- Inserts: Link, Image, PK Badge -->
@@ -965,30 +977,32 @@
                 >
                     <i class="fas fa-link"></i>
                 </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    class:bg-primary={activeState.image}
-                    class:text-white={activeState.image}
-                    class:dark:text-stone-900={activeState.image}
-                    onclick={() => openImageModal()}
-                    title="Insérer ou modifier une image"
-                    aria-label="Image"
-                >
-                    <i class="fas fa-image"></i>
-                </button>
-                <button
-                    type="button"
-                    class="btn-icon"
-                    class:bg-primary={activeState.pkBadge}
-                    class:text-white={activeState.pkBadge}
-                    class:dark:text-stone-900={activeState.pkBadge}
-                    onclick={() => openPkModal()}
-                    title="Insérer ou modifier un repère kilométrique (PK)"
-                    aria-label="Point Kilométrique"
-                >
-                    <i class="fas fa-location-dot"></i>
-                </button>
+                {#if isArticleMode}
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        class:bg-primary={activeState.image}
+                        class:text-white={activeState.image}
+                        class:dark:text-stone-900={activeState.image}
+                        onclick={() => openImageModal()}
+                        title="Insérer ou modifier une image"
+                        aria-label="Image"
+                    >
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        class:bg-primary={activeState.pkBadge}
+                        class:text-white={activeState.pkBadge}
+                        class:dark:text-stone-900={activeState.pkBadge}
+                        onclick={() => openPkModal()}
+                        title="Insérer ou modifier un repère kilométrique (PK)"
+                        aria-label="Point Kilométrique"
+                    >
+                        <i class="fas fa-location-dot"></i>
+                    </button>
+                {/if}
             </div>
         </div>
 

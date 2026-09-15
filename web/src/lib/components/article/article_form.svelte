@@ -728,6 +728,8 @@
                     bind:value={body}
                     mediaItems={activityPhotos}
                     trails={loadedTrails}
+                    stickyToolbar={true}
+                    articleMode={true}
                     placeholder="Racontez votre expérience, partagez vos impressions, les conditions de sentier, les moments forts..."
                     extraClasses="min-h-[400px] p-4"
                 />
