@@ -174,7 +174,7 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		return localList, nil
 	}
 
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
 	query := reqURL.Query()
 	query.Del("handle")
@@ -242,6 +242,7 @@ func syncListMetadata(record *core.Record, data map[string]any) {
 	delete(data, "author")
 	delete(data, "iri")
 
+	stripLocalSyncFields(data)
 	record.Load(data)
 }
 

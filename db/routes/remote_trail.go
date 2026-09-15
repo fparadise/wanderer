@@ -231,7 +231,7 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 		return localTrail, nil
 	}
 
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
 	query := reqURL.Query()
 	query.Del("handle")
@@ -355,6 +355,7 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	delete(data, "federated_category_name")
 	delete(data, "federated_subcategory_name")
 
+	stripLocalSyncFields(data)
 	record.Load(data)
 }
 
