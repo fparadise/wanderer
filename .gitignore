@@ -22,3 +22,5 @@ plugin_dist/
 CLAUDE.md
 DESIGN.md
 PRODUCT.md
+
+.env
