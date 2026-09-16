@@ -32,7 +32,7 @@ services:
         condition: service_healthy
     environment:
       <<: *cenv
-      POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY}}
+      POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY}
       ORIGIN: http://vps-b3f4c9ad.vps.ovh.net:3000
     ports:
       - "8090:8090"
@@ -59,7 +59,7 @@ services:
         condition: service_healthy
     environment:
       <<: *cenv
-      ORIGIN: http://vps-b3f4c9ad.vps.ovh.net:3000
+      ORIGIN: ${ORIGIN}
       BODY_SIZE_LIMIT: Infinity
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"

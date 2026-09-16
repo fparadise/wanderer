@@ -24,3 +24,4 @@ DESIGN.md
 PRODUCT.md
 
 .env
+docker-compose.override.yml
