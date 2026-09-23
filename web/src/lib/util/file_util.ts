@@ -7,7 +7,8 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
         return filename;
     }
 
-    return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumb ? '?thumb=' + thumb : ''}`
+    const thumbQuery = thumb && !isVideoURL(filename) ? `?thumb=${thumb}` : '';
+    return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumbQuery}`;
 }
 
 export function isURL(value: string) {
