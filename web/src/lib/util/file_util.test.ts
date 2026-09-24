@@ -39,6 +39,15 @@ describe("file_util", () => {
                 "/api/v1/files/e864strfxo14pm4/253ac8164a00ad3/video.mp4",
             );
         });
+
+        it("still appends thumb for photos whose name contains a video extension", () => {
+            expect(getFileURL(dummyRecord, "doggo.jpg", "300x300")).toBe(
+                "/api/v1/files/e864strfxo14pm4/253ac8164a00ad3/doggo.jpg?thumb=300x300",
+            );
+            expect(getFileURL(dummyRecord, "mp4-comparison.png", "600x0")).toBe(
+                "/api/v1/files/e864strfxo14pm4/253ac8164a00ad3/mp4-comparison.png?thumb=600x0",
+            );
+        });
     });
 
     describe("isURL", () => {
@@ -54,9 +63,29 @@ describe("file_util", () => {
         it("identifies video extensions and data URIs", () => {
             expect(isVideoURL("trail_video.mp4")).toBe(true);
             expect(isVideoURL("clip.webm")).toBe(true);
+            expect(isVideoURL("clip.ogg")).toBe(true);
+            expect(isVideoURL("clip.ogv")).toBe(true);
+            expect(isVideoURL("CLIP.MP4")).toBe(true);
             expect(isVideoURL("photo.jpg")).toBe(false);
             expect(isVideoURL("data:video/mp4;base64,...")).toBe(true);
             expect(isVideoURL("data:image/png;base64,...")).toBe(false);
+        });
+
+        it("matches the extension rather than a substring", () => {
+            expect(isVideoURL("doggo.jpg")).toBe(false);
+            expect(isVideoURL("mp4-comparison.png")).toBe(false);
+            expect(isVideoURL("webm_vs_mp4.webp")).toBe(false);
+        });
+
+        it("ignores a query string or fragment", () => {
+            expect(isVideoURL("/api/v1/files/c/r/clip.mp4?token=abc")).toBe(true);
+            expect(isVideoURL("/api/v1/files/c/r/photo.jpg?thumb=600x0")).toBe(
+                false,
+            );
+        });
+
+        it("does not treat object URLs as videos", () => {
+            expect(isVideoURL("blob:http://localhost/8f2a-4c11")).toBe(false);
         });
     });
 });
