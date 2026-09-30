@@ -6,7 +6,7 @@
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
     import { gpxWorkerService } from "$lib/services/gpx_worker_service";
-    import { findStartAndEndPoints } from "$lib/util/geojson_util";
+    import { bbox, findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
         createMarkerFromWaypoint,
         createPopupFromTrail,
@@ -30,6 +30,7 @@
     import "maplibre-gl/dist/maplibre-gl.css";
     import "$lib/util/maplibre_worker";
     import { onDestroy, onMount, untrack } from "svelte";
+    import { _ } from "svelte-i18n";
 
     interface Props {
         trails?: Trail[];
@@ -76,6 +77,7 @@
         oninit?: (map: M.Map) => void;
         autoGeolocateOnDrawing?: boolean;
         buildPoiAnchorAction?: OverpassPopupActionFactory;
+        loading?: boolean;
     }
 
     let {
@@ -97,6 +99,7 @@
         mapOptions = undefined,
         activeTrail = $bindable(0),
         clusterTrails = false,
+        loading = $bindable(false),
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -206,6 +209,25 @@
         });
     });
 
+    function polylineToFeatureCollection(polyline: string): FeatureCollection {
+        const coords = decodePolyline(polyline, 5);
+        const fc: FeatureCollection = {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    properties: { is_polyline: true },
+                    geometry: {
+                        type: "LineString",
+                        coordinates: coords,
+                    },
+                },
+            ],
+        };
+        fc.bbox = bbox(fc);
+        return fc;
+    }
+
     function tagBoundingBox(fc: FeatureCollection, diagonal?: number) {
         if (diagonal !== undefined) {
             fc.features.forEach((f) => {
@@ -217,6 +239,12 @@
     }
 
     const loadingTrailIds = new Set<string>();
+    let loadingTrailCount = $state(0);
+    let isGpxLoading = $derived(loadingTrailCount > 0);
+
+    $effect(() => {
+        loading = isGpxLoading;
+    });
 
     $effect(() => {
         const currentTrails = trails;
@@ -229,10 +257,15 @@
                 const trailId = t.id;
                 if (!trailId) return;
 
-                if (gpxDataMap[trailId] || loadingTrailIds.has(trailId)) {
+                // 1. If already cached by worker
+                const cached = gpxWorkerService.getCached(trailId);
+                if (cached) {
+                    tagBoundingBox(cached, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: cached };
                     return;
                 }
 
+                // 2. If full GPX object already provided
                 if (t.expand?.gpx) {
                     const fc = t.expand.gpx.toGeoJSON();
                     tagBoundingBox(fc, t.bounding_box_diagonal);
@@ -240,15 +273,20 @@
                     return;
                 }
 
-                if (t.expand?.gpx_data) {
-                    const cached = gpxWorkerService.getCached(trailId);
-                    if (cached) {
-                        tagBoundingBox(cached, t.bounding_box_diagonal);
-                        gpxDataMap = { ...gpxDataMap, [trailId]: cached };
-                        return;
-                    }
+                // 3. Immediate fallback to coarse polyline if available
+                const currentData = gpxDataMap[trailId];
+                const isCurrentlyPolyline = currentData?.features?.[0]?.properties?.is_polyline;
+                if (t.polyline && !currentData) {
+                    const polylineFc = polylineToFeatureCollection(t.polyline);
+                    tagBoundingBox(polylineFc, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: polylineFc };
+                }
 
+                // 4. Parse full GPX via worker in background
+                if (t.expand?.gpx_data && (!currentData || isCurrentlyPolyline) && !loadingTrailIds.has(trailId)) {
                     loadingTrailIds.add(trailId);
+                    loadingTrailCount++;
+
                     void gpxWorkerService
                         .parseGpxToGeoJSON(trailId, t.expand.gpx_data)
                         .then((fc) => {
@@ -263,6 +301,7 @@
                         })
                         .finally(() => {
                             loadingTrailIds.delete(trailId);
+                            loadingTrailCount--;
                         });
                 }
             });
@@ -412,15 +451,24 @@
     export function refreshElevationProfile() {
         const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
         if (activeId && gpxDataMap[activeId]) {
-            epc?.setData(gpxDataMap[activeId]!, waypoints);
+            const fc = gpxDataMap[activeId]!;
+            if (fc.features?.[0]?.properties?.is_polyline) {
+                return;
+            }
+            epc?.setData(fc, waypoints);
         }
     }
 
     function syncElevationProfileVisibility() {
+        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
+        const currentData = activeId ? gpxDataMap[activeId] : null;
+        const isPolyline = currentData?.features?.[0]?.properties?.is_polyline;
+
         if (
             showElevation &&
             Object.keys(gpxDataMap).length &&
             activeTrail !== null &&
+            !isPolyline &&
             elevationProfileVisibilityPreference !== false
         ) {
             epc?.showProfile();
@@ -1180,7 +1228,17 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
-<div id="map" bind:this={mapContainer}></div>
+<div class="relative w-full h-full">
+    <div id="map" bind:this={mapContainer}></div>
+    {#if isGpxLoading}
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-opacity duration-300">
+            <div class="flex items-center gap-2 bg-menu-background/85 dark:bg-menu-background/85 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-input-border text-xs text-text-muted">
+                <i class="fa fa-circle-notch fa-spin text-primary"></i>
+                <span>{$_("loading-hd-route", { default: "Loading HD route..." })}</span>
+            </div>
+        </div>
+    {/if}
+</div>
 
 <style lang="postcss">
     @reference "tailwindcss";
