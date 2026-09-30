@@ -918,7 +918,8 @@ export class ElevationProfile {
 
         this.times = times;
 
-        this.elevatedPositions = smoothElevations(positions, Math.ceil(positions.length / 100));
+        const windowSize = Math.min(25, Math.ceil(positions.length / 100));
+        this.elevatedPositions = smoothElevations(positions, windowSize);
 
         this.cumulatedDistance = haversineCumulatedDistanceWgs84(
             this.elevatedPositions
