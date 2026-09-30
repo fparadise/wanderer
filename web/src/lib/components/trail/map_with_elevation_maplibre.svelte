@@ -5,6 +5,7 @@
     import type { Trail } from "$lib/models/trail";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
+    import { gpxWorkerService } from "$lib/services/gpx_worker_service";
     import { findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
         createMarkerFromWaypoint,
@@ -143,14 +144,16 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let mapData = $derived(getData(trails, serverClusters));
-    let gpxDataMap = $derived(mapData[0]);
-    let clusterData = $derived(mapData[1]);
-    let previewData = $derived(mapData[2]);
+    let gpxDataMap: Record<string, FeatureCollection> = $state({});
+    let staticMapData = $derived(getStaticMapData(trails, serverClusters));
+    let clusterData = $derived(staticMapData[0]);
+    let previewData = $derived(staticMapData[1]);
 
     $effect(() => {
         // Track dependencies for Svelte 5
-        mapData;
+        gpxDataMap;
+        clusterData;
+        previewData;
 
         if (map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
@@ -203,14 +206,86 @@
         });
     });
 
-    function getData(
+    function tagBoundingBox(fc: FeatureCollection, diagonal?: number) {
+        if (diagonal !== undefined) {
+            fc.features.forEach((f) => {
+                if (f.properties) {
+                    f.properties.bounding_box_diagonal = diagonal;
+                }
+            });
+        }
+    }
+
+    const loadingTrailIds = new Set<string>();
+
+    $effect(() => {
+        const currentTrails = trails;
+        if (!currentTrails || currentTrails.length === 0) {
+            return;
+        }
+
+        untrack(() => {
+            currentTrails.forEach((t) => {
+                const trailId = t.id;
+                if (!trailId) return;
+
+                if (gpxDataMap[trailId] || loadingTrailIds.has(trailId)) {
+                    return;
+                }
+
+                if (t.expand?.gpx) {
+                    const fc = t.expand.gpx.toGeoJSON();
+                    tagBoundingBox(fc, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: fc };
+                    return;
+                }
+
+                if (t.expand?.gpx_data) {
+                    const cached = gpxWorkerService.getCached(trailId);
+                    if (cached) {
+                        tagBoundingBox(cached, t.bounding_box_diagonal);
+                        gpxDataMap = { ...gpxDataMap, [trailId]: cached };
+                        return;
+                    }
+
+                    loadingTrailIds.add(trailId);
+                    void gpxWorkerService
+                        .parseGpxToGeoJSON(trailId, t.expand.gpx_data)
+                        .then((fc) => {
+                            if (!trails.some((cur) => cur.id === trailId)) {
+                                return;
+                            }
+                            tagBoundingBox(fc, t.bounding_box_diagonal);
+                            gpxDataMap = { ...gpxDataMap, [trailId]: fc };
+                        })
+                        .catch((err) => {
+                            console.error(`Failed to parse GPX for trail ${trailId}`, err);
+                        })
+                        .finally(() => {
+                            loadingTrailIds.delete(trailId);
+                        });
+                }
+            });
+
+            const currentIds = new Set(currentTrails.map((t) => t.id).filter(Boolean));
+            let changed = false;
+            const nextMap = { ...gpxDataMap };
+            for (const id of Object.keys(nextMap)) {
+                if (!currentIds.has(id)) {
+                    delete nextMap[id];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                gpxDataMap = nextMap;
+            }
+        });
+    });
+
+    function getStaticMapData(
         trails: Trail[],
         serverClusters?: GeoJSON.FeatureCollection
-    ): [
-        Record<string, FeatureCollection>,
-        FeatureCollection,
-        FeatureCollection,
-    ] {
+    ): [FeatureCollection, FeatureCollection] {
         let clusterData: FeatureCollection = serverClusters ?? {
             type: "FeatureCollection",
             features: [],
@@ -219,28 +294,8 @@
             type: "FeatureCollection",
             features: [],
         };
-        let gpxDataMap: Record<string, FeatureCollection> = {};
 
         trails.forEach((t) => {
-            if (t.id) {
-                let fc: FeatureCollection | null = null;
-                if (t.expand?.gpx) {
-                    fc = t.expand.gpx.toGeoJSON();
-                } else if (t.expand?.gpx_data) {
-                    fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
-                }
-
-                if (fc) {
-                    fc.features.forEach((f) => {
-                        if (f.properties) {
-                            f.properties.bounding_box_diagonal =
-                                t.bounding_box_diagonal;
-                        }
-                    });
-                    gpxDataMap[t.id] = fc;
-                }
-            }
-
             if (clusterTrails) {
                 if (!serverClusters && t.lat !== undefined && t.lon !== undefined) {
                     clusterData.features.push({
@@ -280,7 +335,7 @@
             }
         });
 
-        return [gpxDataMap, clusterData, previewData];
+        return [clusterData, previewData];
     }
 
     function initMap(mapLoaded: boolean) {
