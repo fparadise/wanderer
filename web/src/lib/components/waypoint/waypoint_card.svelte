@@ -7,6 +7,7 @@
     } from "$lib/util/file_util";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
     import { browser } from "$app/environment";
     import PhotoGallery from "../photo_gallery.svelte";
 
@@ -65,17 +66,15 @@
         >
             {#each imgSrc as img, i}
                 {#if isVideoURL(img)}
-                    <!-- svelte-ignore a11y_media_has_caption -->
-                    <video
-                        controls={false}
-                        loop
-                        class="absolute h-full rounded-xl object-cover aspect-square"
+                    <VideoPreview
+                        src={img}
+                        extraClasses="absolute h-full w-full rounded-xl overflow-hidden aspect-square"
                         style="top: {6 * i}px; right: {6 *
                             i}px; transform: rotate(-{i * 5}deg)"
-                        onmouseenter={(e) => (e.target as any).play()}
-                        onmouseleave={(e) => (e.target as any).pause()}
-                        src={img}
-                    ></video>
+                        showBadge={i === imgSrc.length - 1}
+                        badgePosition="bottom-right"
+                        badgeSize="sm"
+                    />
                 {:else}
                     <img
                         class="absolute h-full rounded-xl object-cover aspect-square"

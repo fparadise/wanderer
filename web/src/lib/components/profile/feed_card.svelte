@@ -19,6 +19,7 @@
     } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
     import TrailDropdown from "../trail/trail_dropdown.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
     interface Props {
         feedItem: FeedItem;
     }
@@ -170,11 +171,7 @@
                 >
                     {#each photos.slice(0, 3) as photo, i}
                         {#if isVideoURL(photo)}
-                            <!-- svelte-ignore a11y_media_has_caption -->
-                            <video
-                                class="object-cover h-full max-h-80 w-full"
-                                autoplay
-                                loop
+                            <VideoPreview
                                 src={getFileURL(
                                     {
                                         collectionId: "trails",
@@ -182,7 +179,12 @@
                                     },
                                     photo,
                                 )}
-                            ></video>
+                                extraClasses="w-full h-full max-h-80 {i == 0 &&
+                                photos.length > 2
+                                    ? 'row-span-2'
+                                    : ''}"
+                                badgePosition="bottom-right"
+                            />
                         {:else}
                             <img
                                 class="object-cover h-full max-h-80 w-full"

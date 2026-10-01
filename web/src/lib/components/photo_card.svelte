@@ -1,6 +1,7 @@
 <script lang="ts">
     import { isVideoURL } from "$lib/util/file_util";
     import { _ } from "svelte-i18n";
+    import VideoPreview from "./base/video_preview.svelte";
 
     interface Props {
         src: string;
@@ -40,8 +41,12 @@
     style="background-image: url({src});"
 >
     {#if isVideoURL(src)}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video autoplay loop class="h-32 w-32 rounded-xl object-cover" {src}></video>
+        <VideoPreview
+            {src}
+            extraClasses="h-32 w-32 rounded-xl overflow-hidden"
+            badgePosition="bottom-right"
+            badgeSize="sm"
+        />
     {/if}
     {#if isThumbnail && showThumbnailControls}
         <i

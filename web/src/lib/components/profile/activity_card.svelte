@@ -10,6 +10,7 @@
         formatTimeHHMM,
     } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
+    import VideoPreview from "../base/video_preview.svelte";
     interface Props {
         activity: TimelineItem;
         actor: Actor;
@@ -83,11 +84,7 @@
         >
             {#each activity.photos.slice(0, 3) as photo, i}
                 {#if isVideoURL(photo)}
-                    <!-- svelte-ignore a11y_media_has_caption -->
-                    <video
-                        class="object-cover h-full max-h-80 w-full"
-                        autoplay
-                        loop
+                    <VideoPreview
                         src={getFileURL(
                             {
                                 collectionId: activity.type + "s",
@@ -95,7 +92,11 @@
                             },
                             photo,
                         )}
-                    ></video>
+                        extraClasses="w-full h-full max-h-80 {i == 0 && activity.photos.length > 2
+                            ? 'row-span-2'
+                            : ''}"
+                        badgePosition="bottom-right"
+                    />
                 {:else}
                     <img
                         class="object-cover h-full max-h-80 w-full"

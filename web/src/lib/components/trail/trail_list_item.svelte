@@ -21,6 +21,7 @@
     import ShareInfo from "../share_info.svelte";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import Chip from "../base/chip.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
 
     interface Props {
         trail: Trail;
@@ -70,17 +71,17 @@
     class="flex gap-8 p-4 rounded-xl border border-input-border cursor-pointer hover:bg-secondary-hover transition-colors items-center"
     class:bg-secondary-hover={selected}
 >
-    <div class="shrink-0">
+    <div class="shrink-0 relative">
         {#if isVideoURL(thumbnail)}
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <video
-                class="h-28 w-28 object-cover rounded-xl"
-                autoplay
-                loop
+            <VideoPreview
                 src={thumbnail}
-            ></video>
+                extraClasses="h-28 w-28 rounded-xl overflow-hidden"
+                badgePosition="bottom-right"
+                badgeSize="sm"
+            />
         {:else}
             <img
+                loading="lazy"
                 class="h-28 w-28 object-cover rounded-xl"
                 src={thumbnail}
                 alt=""

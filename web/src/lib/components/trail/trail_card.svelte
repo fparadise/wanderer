@@ -19,6 +19,7 @@
     import { _, locale } from "svelte-i18n";
     import type { MouseEventHandler } from "svelte/elements";
     import Chip from "../base/chip.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
 
     interface Props {
         trail: Trail;
@@ -85,14 +86,13 @@
         class="relative w-full basis-full max-h-48 overflow-hidden rounded-t-2xl"
     >
         {#if isVideoURL(thumbnail)}
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <video
+            <VideoPreview
                 id="header-img"
-                class="w-full h-full object-cover"
-                autoplay
-                loop
                 src={thumbnail}
-            ></video>
+                extraClasses="w-full h-full"
+                videoClasses="object-cover"
+                badgePosition="top-right"
+            />
         {:else}
             <img
                 loading="lazy"

@@ -4,6 +4,7 @@
     import type { SummitLog } from "$lib/models/summit_log";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
 
     import { theme } from "$lib/stores/theme_store";
     import {
@@ -61,15 +62,12 @@
     <div class="flex items-center gap-x-4">
         <div class="h-24 aspect-square shrink-0 rounded-xl overflow-hidden">
             {#if isVideoURL(thumbnail)}
-                <!-- svelte-ignore a11y_media_has_caption -->
-                <video
-                    controls={false}
-                    loop
-                    class="object-cover h-full w-full"
-                    onmouseenter={(e) => (e.target as any).play()}
-                    onmouseleave={(e) => (e.target as any).pause()}
+                <VideoPreview
+                    id="header-img"
                     src={thumbnail}
-                ></video>
+                    badgePosition="bottom-right"
+                    badgeSize="sm"
+                />
             {:else}
                 <img
                     id="header-img"

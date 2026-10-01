@@ -4,6 +4,7 @@
     import { formatDistance } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
+    import VideoPreview from "../base/video_preview.svelte";
 
     type Props = {
         trail: Trail;
@@ -53,19 +54,15 @@
                 >
                     {#each wp.photos.slice(0,3) as photo, j}
                         {#if isVideoURL(photo)}
-                            <!-- svelte-ignore a11y_media_has_caption -->
-                            <video
-                                controls={false}
-                                loop
-                                class="w-full object-cover {j == 0 &&
+                            <VideoPreview
+                                src={getFileURL(wp, photo)}
+                                extraClasses="w-full object-cover {j == 0 &&
                                 wp.photos.length > 2
                                     ? 'row-span-2 h-80'
                                     : 'h-[159.5px]'}"
+                                badgePosition="bottom-right"
                                 onclick={() => gallery[i].openGallery(j)}
-                                onmouseenter={(e) => (e.target as any).play()}
-                                onmouseleave={(e) => (e.target as any).pause()}
-                                src={getFileURL(wp, photo)}
-                            ></video>
+                            />
                         {:else}
                             <img
                                 onclick={() => gallery[i].openGallery(j)}

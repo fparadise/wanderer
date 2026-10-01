@@ -2,6 +2,7 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
+    import VideoPreview from "$lib/components/base/video_preview.svelte";
     import TrailDropdown, { type MergeResult } from "$lib/components/trail/trail_dropdown.svelte";
     import { Comment } from "$lib/models/comment";
     import { Tag } from "$lib/models/tag";
@@ -510,15 +511,17 @@
                 ></PhotoGallery>
                 {#each headerPhotos as photo, i}
                     {#if isVideoURL(photo)}
-                        <!-- svelte-ignore a11y_media_has_caption -->
-                        <video
-                            class="object-cover h-full w-full"
+                        <VideoPreview
+                            src={photo}
+                            extraClasses="h-full w-full {i == 0 &&
+                            headerPhotos.length > 2
+                                ? 'row-span-2'
+                                : ''}"
+                            badgePosition="bottom-right"
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
-                                : null}
-                            loop
-                            src={photo}
-                        ></video>
+                                : undefined}
+                        />
                     {:else}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -929,18 +932,13 @@
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                                 {#if isVideoURL(photo)}
-                                    <!-- svelte-ignore a11y_media_has_caption -->
-                                    <video
-                                        controls={false}
-                                        loop
-                                        class="rounded-xl cursor-pointer hover:scale-105 transition-transform"
-                                        onclick={() => gallery.openGallery(i)}
-                                        onmouseenter={(e) =>
-                                            (e.target as any).play()}
-                                        onmouseleave={(e) =>
-                                            (e.target as any).pause()}
+                                    <VideoPreview
                                         src={getFileURL(trail, photo)}
-                                    ></video>
+                                        extraClasses="rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-transform"
+                                        badgePosition="bottom-right"
+                                        badgeSize="sm"
+                                        onclick={() => gallery.openGallery(i)}
+                                    />
                                 {:else}
                                     <img
                                         class="rounded-xl cursor-pointer hover:scale-105 transition-transform"
