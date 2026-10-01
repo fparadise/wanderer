@@ -1048,7 +1048,7 @@
                         mapOptions={{ attributionControl: { compact: true } }}
                         onfullscreen={toggleMapFullScreen}
                         bind:markers
-                        bind:loading={gpxLoading}
+                        onloadingchange={(loading) => (gpxLoading = loading)}
                     ></MapWithElevationMaplibre>
                 </div>
             {/if}

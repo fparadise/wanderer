@@ -79,7 +79,7 @@
         oninit?: (map: M.Map) => void;
         autoGeolocateOnDrawing?: boolean;
         buildPoiAnchorAction?: OverpassPopupActionFactory;
-        loading?: boolean;
+        onloadingchange?: (loading: boolean) => void;
     }
 
     let {
@@ -102,7 +102,7 @@
         mapOptions = undefined,
         activeTrail = $bindable(0),
         clusterTrails = false,
-        loading = $bindable(false),
+        onloadingchange = undefined,
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -140,7 +140,7 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let gpxDataMap: Record<string, FeatureCollection> = $state({});
+    let gpxDataMap: Record<string, FeatureCollection> = $state.raw({});
     let staticMapData = $derived(getStaticMapData(trails, serverClusters));
     let clusterData = $derived(staticMapData[0]);
     let previewData = $derived(staticMapData[1]);
@@ -236,7 +236,16 @@
     let isGpxLoading = $derived(loadingTrailCount > 0);
 
     $effect(() => {
-        loading = isGpxLoading;
+        const loading = isGpxLoading;
+        let active = true;
+        queueMicrotask(() => {
+            if (active) {
+                onloadingchange?.(loading);
+            }
+        });
+        return () => {
+            active = false;
+        };
     });
 
     $effect(() => {
@@ -250,9 +259,20 @@
                 const trailId = t.id;
                 if (!trailId) return;
 
+                const cacheKey = t.gpx || trailId;
+                const currentData = gpxDataMap[trailId];
+                const isCurrentlyPolyline = currentData?.features?.[0]?.properties?.is_polyline;
+                const currentKey = (currentData as any)?.gpxKey;
+
+                // 0. If full GPX data is already loaded in map for this exact file version, nothing to do
+                if (currentData && !isCurrentlyPolyline && (!currentKey || currentKey === cacheKey)) {
+                    return;
+                }
+
                 // 1. If already cached by worker
-                const cached = gpxWorkerService.getCached(trailId);
+                const cached = gpxWorkerService.getCached(cacheKey);
                 if (cached) {
+                    (cached as any).gpxKey = cacheKey;
                     tagBoundingBox(cached, t.bounding_box_diagonal);
                     gpxDataMap = { ...gpxDataMap, [trailId]: cached };
                     return;
@@ -261,31 +281,32 @@
                 // 2. If full GPX object already provided
                 if (t.expand?.gpx) {
                     const fc = t.expand.gpx.toGeoJSON();
+                    (fc as any).gpxKey = cacheKey;
                     tagBoundingBox(fc, t.bounding_box_diagonal);
                     gpxDataMap = { ...gpxDataMap, [trailId]: fc };
                     return;
                 }
 
-                // 3. Immediate fallback to coarse polyline if available
-                const currentData = gpxDataMap[trailId];
-                const isCurrentlyPolyline = currentData?.features?.[0]?.properties?.is_polyline;
-                if (t.polyline && !currentData) {
+                // 3. Immediate fallback to coarse polyline if available (only for trails where full GPX will be parsed)
+                if (t.polyline && !currentData && t.expand?.gpx_data) {
                     const polylineFc = polylineToFeatureCollection(t.polyline);
                     tagBoundingBox(polylineFc, t.bounding_box_diagonal);
                     gpxDataMap = { ...gpxDataMap, [trailId]: polylineFc };
+                    // Intentionally no return: fall through to step 4 to parse full GPX in background
                 }
 
                 // 4. Parse full GPX via worker in background
-                if (t.expand?.gpx_data && (!currentData || isCurrentlyPolyline) && !loadingTrailIds.has(trailId)) {
+                if (t.expand?.gpx_data && (!currentData || isCurrentlyPolyline || currentKey !== cacheKey) && !loadingTrailIds.has(trailId)) {
                     loadingTrailIds.add(trailId);
                     loadingTrailCount++;
 
                     void gpxWorkerService
-                        .parseGpxToGeoJSON(trailId, t.expand.gpx_data)
+                        .parseGpxToGeoJSON(cacheKey, t.expand.gpx_data)
                         .then((fc) => {
                             if (!trails.some((cur) => cur.id === trailId)) {
                                 return;
                             }
+                            (fc as any).gpxKey = cacheKey;
                             tagBoundingBox(fc, t.bounding_box_diagonal);
                             gpxDataMap = { ...gpxDataMap, [trailId]: fc };
                         })
