@@ -3,6 +3,8 @@
     import PhotoSwipeVideoPlugin from "$lib/vendor/photo-swipe-video-plugin";
     import type { DataSource } from "photoswipe";
     import PhotoSwipeLightbox from "photoswipe/lightbox";
+    import { pushState } from "$app/navigation";
+    import { page } from "$app/state";
     import { onMount, onDestroy } from "svelte";
 
     interface Props {
@@ -17,15 +19,26 @@
     }
     let lightbox: PhotoSwipeLightbox;
     let lightboxDataSource: DataSource;
-    let isHistoryPushed = false;
-    let isClosingFromPopstate = false;
 
-    function handlePopstate() {
-        if (lightbox?.pswp?.isOpen) {
-            isClosingFromPopstate = true;
+    // An open lightbox is a shallow history entry, so Back closes it and
+    // Forward reopens it. The id keeps several galleries on a page apart.
+    const galleryId = $props.id();
+    let ownsHistoryEntry = false;
+
+    $effect(() => {
+        const entry = page.state.lightbox;
+        if (!lightbox) {
+            return;
+        }
+        if (entry?.id === galleryId) {
+            if (!lightbox.pswp) {
+                openGallery(entry.index);
+            }
+        } else if (lightbox.pswp) {
+            ownsHistoryEntry = false;
             lightbox.pswp.close();
         }
-    }
+    });
 
     onMount(() => {
         lightboxDataSource = photos.map((p) => {
@@ -45,14 +58,16 @@
         });
         const videoPlugin = new PhotoSwipeVideoPlugin(lightbox);
 
-        window.addEventListener("popstate", handlePopstate);
-
         lightbox.on("beforeOpen", () => {
-            isHistoryPushed = true;
-            isClosingFromPopstate = false;
-            history.pushState({ pswp: true }, "");
-
             const pswp = lightbox.pswp;
+
+            if (page.state.lightbox?.id !== galleryId) {
+                pushState("", {
+                    lightbox: { id: galleryId, index: pswp?.options.index ?? 0 },
+                });
+            }
+            ownsHistoryEntry = true;
+
             const ds = pswp?.options?.dataSource;
 
             if (Array.isArray(ds)) {
@@ -83,29 +98,21 @@
             }
         });
 
+        // Closed from the UI: drop the entry it added. Closing via Back has
+        // already removed it.
         lightbox.on("close", () => {
-            if (isHistoryPushed && !isClosingFromPopstate) {
-                isHistoryPushed = false;
+            if (ownsHistoryEntry && page.state.lightbox?.id === galleryId) {
                 history.back();
             }
-            isClosingFromPopstate = false;
-        });
-
-        lightbox.on("destroy", () => {
-            isHistoryPushed = false;
-            isClosingFromPopstate = false;
+            ownsHistoryEntry = false;
         });
 
         lightbox.init();
     });
 
     onDestroy(() => {
-        if (typeof window !== "undefined") {
-            window.removeEventListener("popstate", handlePopstate);
-        }
-        if (lightbox?.pswp?.isOpen) {
-            lightbox.pswp.close();
-        }
+        // Unmounting must not navigate, so give up the entry before closing.
+        ownsHistoryEntry = false;
         lightbox?.destroy();
     });
 </script>
