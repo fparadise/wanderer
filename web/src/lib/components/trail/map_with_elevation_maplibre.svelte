@@ -337,7 +337,7 @@
                             gpxDataMap = { ...gpxDataMap, [trailId]: fc };
                         })
                         .catch((err) => {
-                            console.error(`Failed to parse GPX for trail ${trailId}`, err);
+                            console.error(`Failed to load/parse GPX for trail ${trailId}`, err);
                         })
                         .finally(() => {
                             loadingTrailIds.delete(trailId);
@@ -1268,8 +1268,21 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
-<div class="relative w-full h-full">
-    <div id="map" bind:this={mapContainer}></div>
+<div class="relative w-full h-full bg-menu-background">
+    <div
+        id="map"
+        bind:this={mapContainer}
+        class:opacity-0={!mapLoaded}
+        class="transition-opacity duration-300 w-full h-full"
+    ></div>
+    {#if !mapLoaded}
+        <div
+            class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-menu-background border border-input-border rounded-xl animate-pulse text-text-muted"
+            aria-hidden="true"
+        >
+            <i class="fa fa-map text-3xl opacity-25"></i>
+        </div>
+    {/if}
     {#if isGpxLoading}
         <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-opacity duration-300">
             <div class="flex items-center gap-2 bg-menu-background/85 dark:bg-menu-background/85 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-input-border text-xs text-text-muted">

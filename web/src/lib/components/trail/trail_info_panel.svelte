@@ -159,7 +159,9 @@
         ),
     );
 
-    let gpxLoading: boolean = $state(false);
+    let gpxLoading: boolean = $state(
+        untrack(() => Boolean(initTrail?.gpx && !initTrail?.expand?.gpx_data)),
+    );
 
     onMount(async () => {});
 
