@@ -77,7 +77,7 @@
         oninit?: (map: M.Map) => void;
         autoGeolocateOnDrawing?: boolean;
         buildPoiAnchorAction?: OverpassPopupActionFactory;
-        loading?: boolean;
+        onloadingchange?: (loading: boolean) => void;
     }
 
     let {
@@ -99,7 +99,7 @@
         mapOptions = undefined,
         activeTrail = $bindable(0),
         clusterTrails = false,
-        loading = $bindable(false),
+        onloadingchange = undefined,
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -243,7 +243,16 @@
     let isGpxLoading = $derived(loadingTrailCount > 0);
 
     $effect(() => {
-        loading = isGpxLoading;
+        const loading = isGpxLoading;
+        let active = true;
+        queueMicrotask(() => {
+            if (active) {
+                onloadingchange?.(loading);
+            }
+        });
+        return () => {
+            active = false;
+        };
     });
 
     $effect(() => {
