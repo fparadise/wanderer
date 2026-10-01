@@ -5,22 +5,119 @@ import type { ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 
+export interface ArticleFilter {
+    tag?: string;
+    tags?: string[];
+    q?: string;
+    difficultyMin?: number;
+    difficultyMax?: number;
+    difficulty?: number | string;
+    difficulties?: (number | string)[];
+    sort?: string;
+}
+
 export const articles: Writable<Article[]> = writable([]);
 export const currentArticle: Writable<Article | null> = writable(null);
 
 export async function articles_index(
     page: number = 1,
     perPage: number = 20,
+    filterOrFetch?: ArticleFilter | ((url: RequestInfo | URL, config?: RequestInit) => Promise<Response>),
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch
 ): Promise<ListResult<Article>> {
+    let filter: ArticleFilter | undefined;
+    let customFetch = f;
+
+    if (typeof filterOrFetch === "function") {
+        customFetch = filterOrFetch;
+    } else {
+        filter = filterOrFetch;
+    }
+
+    const filterParts: string[] = [];
+
+    // 1. Tags en logique ET (Intersection : chaque tag affine la recherche)
+    const rawTags: string[] = [];
+    if (filter?.tags && Array.isArray(filter.tags) && filter.tags.length > 0) {
+        rawTags.push(...filter.tags);
+    } else if (filter?.tag) {
+        rawTags.push(...filter.tag.split(",").map((t) => t.trim()).filter(Boolean));
+    }
+
+    if (rawTags.length > 0) {
+        rawTags.forEach((t) => {
+            const safeTag = t.replace(/'/g, "\\'");
+            filterParts.push(`tags ~ '${safeTag}'`);
+        });
+    }
+
+    // 2. Recherche textuelle
+    if (filter?.q && filter.q.trim()) {
+        const safeQ = filter.q.trim().replace(/'/g, "\\'");
+        filterParts.push(`(title ~ '${safeQ}' || intro ~ '${safeQ}')`);
+    }
+
+    // 3. Difficulté technique : Plage [min - max] (Double Slider)
+    let minDiff = filter?.difficultyMin;
+    let maxDiff = filter?.difficultyMax;
+
+    // Prise en charge du format chaîne "min-max" (ex: "1-3")
+    if (minDiff === undefined && maxDiff === undefined && filter?.difficulty) {
+        const strDiff = filter.difficulty.toString();
+        if (strDiff.includes("-")) {
+            const [sMin, sMax] = strDiff.split("-");
+            const pMin = parseInt(sMin, 10);
+            const pMax = parseInt(sMax, 10);
+            if (!isNaN(pMin)) minDiff = pMin;
+            if (!isNaN(pMax)) maxDiff = pMax;
+        }
+    }
+
+    if (minDiff !== undefined || maxDiff !== undefined) {
+        const min = minDiff ?? 1;
+        const max = maxDiff ?? 5;
+        // Filtrer uniquement si différent de la plage totale complète [1 - 5]
+        if (min > 1 || max < 5) {
+            filterParts.push(`(technical_difficulty >= ${min} && technical_difficulty <= ${max})`);
+        }
+    } else {
+        // Fallback rétrocompatible pour tableau discret de difficultés
+        const rawDiffs: (number | string)[] = [];
+        if (filter?.difficulties && Array.isArray(filter.difficulties) && filter.difficulties.length > 0) {
+            rawDiffs.push(...filter.difficulties);
+        } else if (
+            filter?.difficulty !== undefined &&
+            filter.difficulty !== "" &&
+            filter.difficulty !== null &&
+            filter.difficulty !== "all"
+        ) {
+            if (typeof filter.difficulty === "string" && filter.difficulty.includes(",")) {
+                rawDiffs.push(...filter.difficulty.split(",").map((d) => d.trim()).filter(Boolean));
+            } else {
+                rawDiffs.push(filter.difficulty);
+            }
+        }
+
+        if (rawDiffs.length > 0) {
+            const diffClauses = rawDiffs.map((d) => `technical_difficulty = ${d}`);
+            filterParts.push(`(${diffClauses.join(" || ")})`);
+        }
+    }
+
+    const filterString = filterParts.join(" && ");
+
     const params = new URLSearchParams({
         page: page.toString(),
         perPage: perPage.toString(),
-        sort: "-created",
-        expand: "relation,author,participants",
+        sort: filter?.sort || "-created",
+        expand: "relation,author,participants,lists",
     });
 
-    const r = await f(`/api/v1/articles?${params.toString()}`, {
+    if (filterString) {
+        params.set("filter", filterString);
+    }
+
+    const r = await customFetch(`/api/v1/articles?${params.toString()}`, {
         method: "GET",
     });
 
@@ -88,6 +185,10 @@ export async function articles_create(
         formData.append("participants", participantId);
     }
 
+    for (const listId of articleData.lists || []) {
+        formData.append("lists", listId);
+    }
+
     for (const file of heroFiles) {
         formData.append("hero_images", file);
     }
@@ -128,14 +229,32 @@ export async function articles_update(
     if (articleData.excluded_photos !== undefined) formData.append("excluded_photos", JSON.stringify(articleData.excluded_photos));
 
     if (articleData.relation !== undefined) {
-        for (const trailId of articleData.relation) {
-            formData.append("relation", trailId);
+        if (articleData.relation.length === 0) {
+            formData.append("relation", "");
+        } else {
+            for (const trailId of articleData.relation) {
+                formData.append("relation", trailId);
+            }
         }
     }
 
     if (articleData.participants !== undefined) {
-        for (const pId of articleData.participants) {
-            formData.append("participants", pId);
+        if (articleData.participants.length === 0) {
+            formData.append("participants", "");
+        } else {
+            for (const pId of articleData.participants) {
+                formData.append("participants", pId);
+            }
+        }
+    }
+
+    if (articleData.lists !== undefined) {
+        if (articleData.lists.length === 0) {
+            formData.append("lists", "");
+        } else {
+            for (const listId of articleData.lists) {
+                formData.append("lists", listId);
+            }
         }
     }
 

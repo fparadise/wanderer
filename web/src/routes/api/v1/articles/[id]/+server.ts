@@ -6,7 +6,7 @@ export async function GET(event: RequestEvent) {
     try {
         const id = event.params.id!;
         const r = await event.locals.pb.collection(Collection.articles).getOne<Article>(id, {
-            expand: "relation,author,participants",
+            expand: "relation,author,participants,lists,lists.author",
         });
         return json(r);
     } catch (e) {
@@ -19,7 +19,7 @@ export async function POST(event: RequestEvent) {
         const id = event.params.id!;
         const data = await event.request.formData();
         const r = await event.locals.pb.collection(Collection.articles).update<Article>(id, data, {
-            expand: "relation,author,participants",
+            expand: "relation,author,participants,lists,lists.author",
         });
         return json(r);
     } catch (e) {

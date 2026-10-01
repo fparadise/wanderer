@@ -55,16 +55,33 @@
     let author = $derived(article.expand?.author);
     let authorName = $derived(author?.preferred_username || author?.username || "Auteur");
     let participants = $derived(article.expand?.participants || []);
+    let associatedLists = $derived(article.expand?.lists || []);
     let tags = $derived(article.tags || []);
     let techDiff = $derived(
         article.technical_difficulty ? TECHNICAL_DIFFICULTY_LEVELS[article.technical_difficulty] : null
     );
 
+    let isAuthor = $derived(
+        Boolean(
+            $currentUser &&
+            (article.author === $currentUser.actor ||
+             author?.user === $currentUser.id)
+        )
+    );
+
+    let isParticipant = $derived(
+        Boolean(
+            $currentUser &&
+            (article.participants?.includes($currentUser.actor ?? "") ||
+             participants.some((p) => p.user === $currentUser.id || p.id === $currentUser.actor))
+        )
+    );
+
     let canEdit = $derived(
-        $currentUser &&
-        (article.author === $currentUser.actor ||
-         author?.user === $currentUser.id ||
-         $currentUser.is_admin === true)
+        Boolean(
+            $currentUser &&
+            (isAuthor || isParticipant || $currentUser.is_admin === true)
+        )
     );
 
     let isTogglingFeatured = $state(false);
@@ -991,13 +1008,27 @@
                 {/if}
 
                 {#if participants.length > 0}
-                    <div class="flex items-center gap-1.5 pl-4 border-l border-input-border">
-                        <span class="text-xs text-content/70 mr-1">Avec :</span>
-                        {#each participants as p}
-                            <span class="text-xs font-medium bg-input-background border border-input-border px-2 py-0.5 rounded-full text-content" title={p.preferred_username || p.username}>
-                                {p.preferred_username || p.username}
-                            </span>
-                        {/each}
+                    <div class="flex items-center gap-2 pl-4 border-l border-input-border flex-wrap">
+                        <span class="text-xs text-content/60 font-medium">Avec</span>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            {#each participants as p}
+                                {@const pName = p.preferred_username || p.username}
+                                {@const pAvatar = p.icon
+                                    ? (p.icon.startsWith("http") ? p.icon : getFileURL(p, p.icon))
+                                    : `https://api.dicebear.com/7.x/initials/svg?seed=${pName}&backgroundType=gradientLinear`}
+                                <span class="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 bg-input-background/60 hover:bg-input-background border border-input-border rounded-full text-xs font-medium text-content transition-colors" title={p.domain ? `@${pName}@${p.domain}` : `@${pName}`}>
+                                    <img
+                                        src={pAvatar}
+                                        alt={pName}
+                                        class="w-4 h-4 rounded-full object-cover shrink-0"
+                                    />
+                                    <span>{pName}</span>
+                                    {#if !p.is_local && p.domain}
+                                        <span class="text-[10px] text-content/50">@{p.domain}</span>
+                                    {/if}
+                                </span>
+                            {/each}
+                        </div>
                     </div>
                 {/if}
             </div>
@@ -1059,9 +1090,13 @@
         {#if tags.length > 0}
             <div class="flex flex-wrap items-center gap-2 pt-2">
                 {#each tags as tag}
-                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 shadow-2xs">
+                    <a
+                        href="/articles?tag={encodeURIComponent(tag)}"
+                        class="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 shadow-2xs transition-colors"
+                        title="Voir tous les récits sur le thème {tag}"
+                    >
                         {tag}
-                    </span>
+                    </a>
                 {/each}
             </div>
         {/if}
@@ -1335,6 +1370,76 @@
                                 </div>
                             {/if}
                         </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
+        <!-- Associated Companion Lists Section -->
+        {#if associatedLists.length > 0}
+            <div class="space-y-6 pt-10 border-t border-input-border">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-layer-group text-sm"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-serif font-bold text-content">Ressources & Listes associées</h2>
+                        <p class="text-xs text-content/60">Listes thématiques complémentaires pour préparer ou approfondir ce voyage.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {#each associatedLists as lst}
+                        {@const trailCount = lst.trails?.length || 0}
+                        {@const listAuthor = lst.expand?.author}
+                        {@const authorName = listAuthor?.preferred_username || listAuthor?.username || "Auteur"}
+                        {@const authorAvatar = listAuthor?.icon
+                            ? (listAuthor.icon.startsWith("http") ? listAuthor.icon : getFileURL(listAuthor, listAuthor.icon))
+                            : `https://api.dicebear.com/7.x/initials/svg?seed=${authorName}`}
+                        {@const coverUrl = lst.avatar ? getFileURL(lst, lst.avatar) : null}
+
+                        <a
+                            href="/lists/{lst.id}"
+                            class="group bg-background border border-input-border hover:border-primary/50 rounded-2xl p-4.5 transition-all duration-200 shadow-2xs hover:shadow-md flex flex-col justify-between gap-4 block"
+                        >
+                            <div class="flex items-start gap-3.5">
+                                {#if coverUrl}
+                                    <img
+                                        src={coverUrl}
+                                        alt={lst.name}
+                                        class="w-14 h-14 rounded-xl object-cover shrink-0 border border-input-border group-hover:scale-105 transition-transform"
+                                    />
+                                {:else}
+                                    <div class="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
+                                        <i class="fa-solid fa-route text-lg"></i>
+                                    </div>
+                                {/if}
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="text-sm font-bold text-content group-hover:text-primary transition-colors line-clamp-1">
+                                        {lst.name}
+                                    </h3>
+                                    {#if lst.description}
+                                        <p class="text-xs text-content/70 line-clamp-2 mt-1 leading-relaxed">
+                                            {lst.description}
+                                        </p>
+                                    {/if}
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-input-border/50 text-xs text-content/60">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <img
+                                        src={authorAvatar}
+                                        alt={authorName}
+                                        class="w-5 h-5 rounded-full object-cover shrink-0"
+                                    />
+                                    <span class="truncate font-medium">Par {authorName}</span>
+                                </div>
+                                <span class="font-semibold text-primary shrink-0 bg-primary/10 px-2 py-0.5 rounded-md text-[11px]">
+                                    {trailCount} {trailCount > 1 ? "traces" : "trace"}
+                                </span>
+                            </div>
+                        </a>
                     {/each}
                 </div>
             </div>

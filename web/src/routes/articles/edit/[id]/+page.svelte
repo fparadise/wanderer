@@ -11,11 +11,36 @@
     let { data }: { data: PageData } = $props();
     let article = $derived(data.article);
 
+    let isAuthor = $derived(
+        Boolean(
+            $currentUser &&
+            (article.author === $currentUser.actor ||
+             article.expand?.author?.user === $currentUser.id)
+        )
+    );
+
+    let isParticipant = $derived(
+        Boolean(
+            $currentUser &&
+            (article.participants?.includes($currentUser.actor ?? "") ||
+             article.expand?.participants?.some(
+                 (p) => p.user === $currentUser.id || p.id === $currentUser.actor
+             ))
+        )
+    );
+
     let canEdit = $derived(
-        $currentUser &&
-        (article.author === $currentUser.actor ||
-         article.expand?.author?.user === $currentUser.id ||
-         $currentUser.is_admin === true)
+        Boolean(
+            $currentUser &&
+            (isAuthor || isParticipant || $currentUser.is_admin === true)
+        )
+    );
+
+    let canDelete = $derived(
+        Boolean(
+            $currentUser &&
+            (isAuthor || $currentUser.is_admin === true)
+        )
     );
 
     onMount(() => {
@@ -49,6 +74,14 @@
     }
 
     async function handleDelete() {
+        if (!canDelete) {
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: "Seul l'auteur principal peut supprimer ce récit.",
+            });
+            return;
+        }
         await articles_delete(article.id!);
         show_toast({
             type: "success",
@@ -67,7 +100,8 @@
     <ArticleForm
         mode="edit"
         initialArticle={article}
+        canDelete={canDelete}
         onsubmit={handleSubmit}
-        ondelete={handleDelete}
+        ondelete={canDelete ? handleDelete : undefined}
     />
 {/if}

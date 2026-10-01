@@ -1,5 +1,6 @@
 import type { Trail } from "./trail";
 import type { Actor } from "./activitypub/actor";
+import type { List } from "./list";
 
 export class Article {
     id?: string;
@@ -14,6 +15,7 @@ export class Article {
     relation: string[];
     author?: string;
     participants?: string[];
+    lists?: string[];
     tags: string[];
     technical_difficulty: number;
     featured?: boolean;
@@ -22,6 +24,7 @@ export class Article {
         relation?: Trail[];
         author?: Actor;
         participants?: Actor[];
+        lists?: List[];
     };
     created?: string;
     updated?: string;
@@ -39,6 +42,7 @@ export class Article {
             relation?: string[];
             author?: string;
             participants?: string[];
+            lists?: string[];
             tags?: string[];
             technical_difficulty?: number;
             featured?: boolean;
@@ -47,6 +51,7 @@ export class Article {
                 relation?: Trail[];
                 author?: Actor;
                 participants?: Actor[];
+                lists?: List[];
             };
         }
     ) {
@@ -61,6 +66,7 @@ export class Article {
         this.relation = params?.relation ?? [];
         this.author = params?.author;
         this.participants = params?.participants ?? [];
+        this.lists = params?.lists ?? [];
         this.tags = params?.tags ?? [];
         this.technical_difficulty = params?.technical_difficulty ?? 0;
         this.featured = params?.featured ?? false;

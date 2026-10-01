@@ -2,8 +2,12 @@
     import { goto } from "$app/navigation";
     import Editor from "$lib/components/base/editor.svelte";
     import TrailPicker from "$lib/components/article/trail_picker.svelte";
+    import ParticipantPicker from "$lib/components/article/participant_picker.svelte";
+    import ListPicker from "$lib/components/article/list_picker.svelte";
     import type { Article } from "$lib/models/article";
     import type { Trail } from "$lib/models/trail";
+    import type { Actor } from "$lib/models/activitypub/actor";
+    import type { List } from "$lib/models/list";
     import { trails_show } from "$lib/stores/trail_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { currentUser } from "$lib/stores/user_store";
@@ -25,6 +29,7 @@
     interface Props {
         mode: "create" | "edit";
         initialArticle?: Article;
+        canDelete?: boolean;
         onsubmit: (
             data: Partial<Article>,
             heroFiles: File[],
@@ -33,7 +38,7 @@
         ondelete?: () => Promise<void>;
     }
 
-    let { mode, initialArticle, onsubmit, ondelete }: Props = $props();
+    let { mode, initialArticle, canDelete = true, onsubmit, ondelete }: Props = $props();
 
     let title: string = $state(initialArticle?.title || "");
     let intro: string = $state(initialArticle?.intro || "");
@@ -48,6 +53,18 @@
     let featured: boolean = $state(initialArticle?.featured ?? false);
     let selectedTags: string[] = $state(
         initialArticle?.tags ? [...initialArticle.tags] : []
+    );
+    let selectedParticipantIds: string[] = $state(
+        initialArticle?.participants ? [...initialArticle.participants] : []
+    );
+    let initialParticipants: Actor[] = $state(
+        initialArticle?.expand?.participants || []
+    );
+    let selectedListIds: string[] = $state(
+        initialArticle?.lists ? [...initialArticle.lists] : []
+    );
+    let initialLists: List[] = $state(
+        initialArticle?.expand?.lists || []
     );
     let customTagInput: string = $state("");
     let dbEditorialTags: Tag[] = $state([]);
@@ -394,6 +411,8 @@
                     total_days: totalDays,
                     date,
                     relation: selectedTrailIds,
+                    participants: selectedParticipantIds,
+                    lists: selectedListIds,
                     tags: selectedTags,
                     technical_difficulty: technicalDifficulty,
                     featured: featured,
@@ -896,6 +915,22 @@
                 />
             </div>
 
+            <!-- Co-authors & Participants Widget -->
+            <div class="bg-background border border-input-border rounded-2xl p-5 shadow-xs">
+                <ParticipantPicker
+                    bind:selectedIds={selectedParticipantIds}
+                    initialActors={initialParticipants}
+                />
+            </div>
+
+            <!-- Associated Companion Lists Widget -->
+            <div class="bg-background border border-input-border rounded-2xl p-5 shadow-xs">
+                <ListPicker
+                    bind:selectedIds={selectedListIds}
+                    initialLists={initialLists}
+                />
+            </div>
+
             <!-- Voyage Metrics -->
             <div class="bg-background border border-input-border rounded-2xl p-5 shadow-xs space-y-4">
                 <h3 class="text-xs uppercase font-bold tracking-wider text-content/70">
@@ -1048,7 +1083,7 @@
                     {/if}
                 </button>
 
-                {#if mode === "edit" && ondelete}
+                {#if mode === "edit" && ondelete && canDelete}
                     <div class="pt-2 border-t border-input-border/40">
                         <button
                             type="button"

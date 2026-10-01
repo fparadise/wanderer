@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import type { Article } from "$lib/models/article";
     import { getFileURL } from "$lib/util/file_util";
     import { RADIUS, formatArticleSummary } from "$lib/config/design_system";
@@ -67,9 +68,18 @@
                 </span>
                 {#if article.tags && article.tags.length > 0}
                     {#each article.tags.slice(0, 2) as tag}
-                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-background/90 text-content border border-input-border backdrop-blur-xs shadow-2xs">
+                        <button
+                            type="button"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                goto(`/articles?tag=${encodeURIComponent(tag)}`);
+                            }}
+                            class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-background/90 hover:bg-background text-content border border-input-border backdrop-blur-xs shadow-2xs hover:border-primary/50 transition-colors cursor-pointer"
+                            title="Filtrer par {tag}"
+                        >
                             {tag}
-                        </span>
+                        </button>
                     {/each}
                 {/if}
             </div>
@@ -192,7 +202,18 @@
                 {#if article.tags && article.tags.length > 0}
                     <div class="flex flex-wrap gap-1">
                         {#each article.tags.slice(0, 3) as tag}
-                            <span class="text-[10px] uppercase font-bold tracking-wider text-primary">{tag}</span>
+                            <button
+                                type="button"
+                                onclick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    goto(`/articles?tag=${encodeURIComponent(tag)}`);
+                                }}
+                                class="text-[10px] uppercase font-bold tracking-wider text-primary hover:underline cursor-pointer"
+                                title="Filtrer par {tag}"
+                            >
+                                {tag}
+                            </button>
                         {/each}
                     </div>
                 {/if}
