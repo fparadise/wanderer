@@ -16,6 +16,7 @@
         error?: string | string[] | null;
         disabled?: boolean;
         fullWidth?: boolean;
+        extraClasses?: string;
         onchange?: (value: any) => void
     }
 
@@ -27,6 +28,7 @@
         error = "",
         disabled = false,
         fullWidth = false,
+        extraClasses = "",
         onchange
     }: Props = $props();
 
@@ -43,7 +45,7 @@
     {/if}
     <select
         {name}
-        class="block bg-input-background h-10 px-4 border-r-8 border-transparent outline-1 outline-input-border rounded-md focus:outline-input-border-focus transition-colors"
+        class="block bg-input-background h-10 px-4 border-r-8 border-transparent outline-1 outline-input-border rounded-md focus:outline-input-border-focus transition-colors {extraClasses}"
         class:w-full={fullWidth}
         class:outline-red-400={(error?.length ?? 0) > 0}
         class:bg-input-background-error={(error?.length ?? 0) > 0}

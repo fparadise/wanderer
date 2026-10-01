@@ -223,10 +223,11 @@ export function fromKML(kmlData: string) {
 }
 
 export async function fromKMZ(kmzData: ArrayBuffer) {
-    const zip = new JSZip()
-    const zipContents = await zip.loadAsync(kmzData)
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    const zipContents = await zip.loadAsync(kmzData);
     const kmlFile = await zip.file('doc.kml')?.async('string');
-    return fromKML(kmlFile ?? "")
+    return fromKML(kmlFile ?? "");
 }
 
 export function fromTCX(tcxData: string) {

@@ -22,9 +22,12 @@ export class FullscreenControl implements IControl {
             "maplibregl-ctrl-group"
         );
         this.fullscreenButton = document.createElement("button");
+        this.fullscreenButton.type = "button";
+        this.fullscreenButton.title = "Plein écran";
+        this.fullscreenButton.setAttribute("aria-label", "Plein écran");
         this.buttonContainer.appendChild(this.fullscreenButton);
         this.iconSpan = document.createElement("i");
-        this.iconSpan.classList.add("fa", "fa-maximize", "text-black");
+        this.iconSpan.classList.add("fa-solid", "fa-expand", "text-neutral-800", "dark:text-neutral-200");
         this.fullscreenButton.appendChild(this.iconSpan);
         this.fullscreenButton.addEventListener("click", this.callback);
 

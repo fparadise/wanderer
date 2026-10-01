@@ -3,9 +3,11 @@ import type { Trail } from "./trail";
 export class Tag {
     id?: string;
     name: string;
+    editorial?: boolean;
 
-    constructor(name: string) {
+    constructor(name: string, editorial?: boolean) {
         this.name = name;
+        this.editorial = editorial;
     }
 }
 

@@ -12,6 +12,21 @@ import { getFileURL } from "./file_util";
 import { formatDistance, formatElevation, formatTimeHHMM } from "./format_util";
 import { icons } from "./icon_util";
 
+// Safeguard MapLibre Marker against internal _updateOpacity crash when marker is removed
+if (typeof window !== "undefined" && (M as any).Marker) {
+    const MarkerProto = (M as any).Marker.prototype;
+    if (MarkerProto && !MarkerProto.__opacityPatched) {
+        const origUpdateOpacity = MarkerProto._updateOpacity;
+        if (typeof origUpdateOpacity === "function") {
+            MarkerProto._updateOpacity = function (force?: boolean) {
+                if (!this._map || !this._map.transform) return;
+                return origUpdateOpacity.call(this, force);
+            };
+            MarkerProto.__opacityPatched = true;
+        }
+    }
+}
+
 export class FontawesomeMarker extends M.Marker {
     constructor(options: { icon: string, fontSize?: string, width?: number, backgroundColor?: string, fontColor?: string, style?: string, id?: string }, markerOptions?: M.MarkerOptions) {
         const element = document.createElement('div')

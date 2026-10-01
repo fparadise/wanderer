@@ -8,9 +8,13 @@ import type { AuthRecord } from 'pocketbase';
 
 export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 
-	let notifications
-	if (locals.user?.id) {
-		notifications = await notifications_index({ recipient: locals.user.actor }, 1, 10, fetch);
+	let notifications;
+	if (locals.user?.id && locals.user.actor) {
+		try {
+			notifications = await notifications_index({ recipient: locals.user.actor }, 1, 10, fetch);
+		} catch (e) {
+			console.error("Failed to fetch notifications:", e);
+		}
 	}
 	return { settings: locals.settings as Settings, user: locals.user as AuthRecord, notifications, origin: env.ORIGIN }
 }

@@ -73,7 +73,7 @@
 </script>
 
 <div
-    class="trail-card relative rounded-2xl border border-input-border min-w-72 h-[386px] bg-background {fullWidth
+    class="trail-card relative rounded-2xl border border-input-border min-w-72 h-[386px] bg-surface shadow-xs {fullWidth
         ? ''
         : 'lg:w-72'} cursor-pointer flex flex-col"
     class:bg-secondary-hover={selected}
@@ -185,13 +185,13 @@
                         : "@" + trail.expand.author.domain}
                 </p>
             {/if}
-            {#if trail.tags.length}
+            {#if trail.tags.length && trail.expand?.tags}
                 <div class="flex flex-wrap gap-1 mb-3 items-center">
-                    {#each expandedTags ? trail.tags : trail.tags.slice(0, 2) as t}
-                        <Chip text={t} closable={false} primary={false}></Chip>
+                    {#each expandedTags ? trail.expand.tags : trail.expand.tags.slice(0, 2) as tag}
+                        <Chip text={tag.name} closable={false} primary={false}></Chip>
                     {/each}
 
-                    {#if trail.tags.length > 2}
+                    {#if trail.expand.tags.length > 2}
                         <button
                             onclick={toggleExpandTags}
                             class="text-sm text-gray-500 hover:underline focus:outline-none"
@@ -200,7 +200,7 @@
                             {#if expandedTags}
                                 {$_("show-less")}
                             {:else}
-                                +{trail.tags.length - 2} {$_("more")}
+                                +{trail.expand.tags.length - 2} {$_("more")}
                             {/if}
                         </button>
                     {/if}

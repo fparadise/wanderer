@@ -11,15 +11,25 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
     return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumbQuery}`;
 }
 
-export function isURL(value: string) {
-    let url
+export function isURL(value?: string | null): boolean {
+    if (!value || typeof value !== "string") {
+        return false;
+    }
+    // Fast-path for data: and blob: URIs
+    if (value.startsWith("data:") || value.startsWith("blob:")) {
+        return true;
+    }
+    // Fast-path: An absolute web URL must start with http://, https://, or protocol-relative //
+    // Plain filenames (e.g. "photo.jpg", "cover_xxx.jpg") or icon names are not URLs
+    if (!value.startsWith("http://") && !value.startsWith("https://") && !value.startsWith("//")) {
+        return false;
+    }
     try {
-        url = new URL(value);
+        const url = new URL(value, "http://localhost");
+        return url.protocol === "http:" || url.protocol === "https:";
     } catch (_) {
         return false;
     }
-
-    return url.protocol === "http:" || url.protocol === "https:";
 }
 
 export function readAsDataURLAsync(file: File) {
@@ -33,16 +43,17 @@ export function readAsDataURLAsync(file: File) {
     });
 }
 
-const videoExtensions = /\.(mp4|webm|ogg|ogv)$/i;
+const videoExtensions = /\.(mp4|webm|ogg|ogv|mov|m4v|mkv)$/i;
 
-export function isVideoURL(url: string) {
+export function isVideoURL(url: string | null | undefined): boolean {
+    if (!url) return false;
     if (url.startsWith("data")) {
-        return url.startsWith("data:video")
+        return url.startsWith("data:video");
     }
     // Match the extension rather than a substring, so a photo whose name merely
     // contains "ogg" or "mp4" (doggo.jpg) is not mistaken for a video.
     const path = url.split(/[?#]/, 1)[0];
-    return videoExtensions.test(path)
+    return videoExtensions.test(path);
 }
 
 export function saveAs(data: Blob, fileName: string) {

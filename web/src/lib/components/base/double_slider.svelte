@@ -8,6 +8,7 @@
         maxValue?: number;
         currentMin?: any;
         currentMax?: any;
+        step?: number;
         onset?: (data: [number, number]) => void;
         onupdate?: (data: [number, number]) => void;
     }
@@ -17,11 +18,23 @@
         maxValue = 100,
         currentMin = $bindable(minValue),
         currentMax = $bindable(maxValue),
+        step,
         onset,
         onupdate,
     }: Props = $props();
 
     let sliderContainer: any = $state();
+
+    $effect(() => {
+        if (sliderContainer?.noUiSlider) {
+            const currentValues = sliderContainer.noUiSlider.get();
+            const sliderMin = parseFloat(Array.isArray(currentValues) ? currentValues[0] : currentValues);
+            const sliderMax = parseFloat(Array.isArray(currentValues) ? currentValues[1] : currentValues);
+            if (sliderMin !== currentMin || sliderMax !== currentMax) {
+                sliderContainer.noUiSlider.set([currentMin, currentMax]);
+            }
+        }
+    });
 
     onMount(() => {
         const updateValues = (values: string[]) => {
@@ -30,14 +43,20 @@
             onupdate?.([currentMin, currentMax]);
         };
 
-        noUiSlider.create(sliderContainer, {
+        const config: noUiSlider.Options = {
             start: [currentMin, currentMax],
             connect: true,
             range: {
                 min: minValue,
                 max: maxValue,
             },
-        });
+        };
+
+        if (step !== undefined) {
+            config.step = step;
+        }
+
+        noUiSlider.create(sliderContainer, config);
 
         sliderContainer.noUiSlider.on("update", updateValues);
 

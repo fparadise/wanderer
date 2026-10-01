@@ -43,7 +43,9 @@
             dataSource: lightboxDataSource,
             pswpModule: async () => await import("photoswipe"),
         });
-        const videoPlugin = new PhotoSwipeVideoPlugin(lightbox);
+        const videoPlugin = new PhotoSwipeVideoPlugin(lightbox, {
+            autoplay: false,
+        });
 
         window.addEventListener("popstate", handlePopstate);
 

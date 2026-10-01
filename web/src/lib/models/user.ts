@@ -8,6 +8,7 @@ export type User = AuthRecord & {
     password: string,
     avatar?: string;
     created?: string;
+    is_admin?: boolean;
 }
 
 export type UserAnonymous = {

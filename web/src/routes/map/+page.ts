@@ -4,6 +4,7 @@ import { category_preferences_index } from "$lib/stores/category_preference_stor
 import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
 import { subcategories_index } from "$lib/stores/subcategory_store";
 import { trails_get_bounding_box, trails_get_filter_values } from "$lib/stores/trail_store";
+import { articles_index } from "$lib/stores/article_store";
 import type { ServerLoad } from "@sveltejs/kit";
 
 export const load: ServerLoad = async ({ fetch }) => {
@@ -37,10 +38,20 @@ export const load: ServerLoad = async ({ fetch }) => {
         sortOrder: "-",
     };
 
-    await categories_index(fetch)
-    await subcategories_index(fetch)
-    await category_preferences_index(fetch)
-    await subcategory_preferences_index(fetch)
+    const [articlesRes] = await Promise.all([
+        articles_index(1, 50, fetch).catch((e) => {
+            console.warn("Could not load articles for map:", e);
+            return { items: [], totalItems: 0 };
+        }),
+        categories_index(fetch),
+        subcategories_index(fetch),
+        category_preferences_index(fetch),
+        subcategory_preferences_index(fetch),
+    ]);
 
-    return { filter: filter, boundingBox: boundingBox }
+    return {
+        filter: filter,
+        boundingBox: boundingBox,
+        articles: articlesRes.items || [],
+    };
 };

@@ -65,6 +65,10 @@ plugins-install-local: plugins-build
 	cp -a plugins/komoot/dist/komoot data/plugins/
 	cp -a plugins/strava/dist/strava data/plugins/
 
+.PHONY: plugins-install-docker
+plugins-install-docker:
+	docker run --rm -v $$(pwd):/src -w /src tinygo/tinygo:0.39.0 make plugins-install-local
+
 .PHONY: plugins-package
 plugins-package: plugins-build
 	rm -rf plugin_dist
