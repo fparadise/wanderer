@@ -50,6 +50,7 @@
             activeTrail={0}
             bind:markers
             showTerrain={true}
+            lazyLoadGpx={true}
         ></MapWithElevationMaplibre>
     </div>
 </main>

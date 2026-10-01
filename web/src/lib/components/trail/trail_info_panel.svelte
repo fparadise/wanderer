@@ -1049,6 +1049,7 @@
                         onfullscreen={toggleMapFullScreen}
                         bind:markers
                         onloadingchange={(loading) => (gpxLoading = loading)}
+                        lazyLoadGpx={true}
                     ></MapWithElevationMaplibre>
                 </div>
             {/if}

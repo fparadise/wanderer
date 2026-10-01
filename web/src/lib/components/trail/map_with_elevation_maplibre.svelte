@@ -5,6 +5,7 @@
     import type { Trail } from "$lib/models/trail";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
+    import { fetchGPX } from "$lib/stores/trail_store";
     import { gpxWorkerService } from "$lib/services/gpx_worker_service";
     import { bbox, findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
@@ -78,6 +79,7 @@
         autoGeolocateOnDrawing?: boolean;
         buildPoiAnchorAction?: OverpassPopupActionFactory;
         onloadingchange?: (loading: boolean) => void;
+        lazyLoadGpx?: boolean;
     }
 
     let {
@@ -100,6 +102,7 @@
         activeTrail = $bindable(0),
         clusterTrails = false,
         onloadingchange = undefined,
+        lazyLoadGpx = false,
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -295,20 +298,36 @@
                 }
 
                 // 3. Immediate fallback to coarse polyline if available (only for trails where full GPX will be parsed)
-                if (t.polyline && !currentData && t.expand?.gpx_data) {
+                const willParseGpx = Boolean(t.expand?.gpx_data || (lazyLoadGpx && t.gpx));
+                if (t.polyline && !currentData && willParseGpx) {
                     const polylineFc = polylineToFeatureCollection(t.polyline);
                     tagBoundingBox(polylineFc, t.bounding_box_diagonal);
                     gpxDataMap = { ...gpxDataMap, [trailId]: polylineFc };
                     // Intentionally no return: fall through to step 4 to parse full GPX in background
                 }
 
-                // 4. Parse full GPX via worker in background
-                if (t.expand?.gpx_data && (!currentData || isCurrentlyPolyline || currentKey !== cacheKey) && !loadingTrailIds.has(trailId)) {
+                // 4. Parse full GPX via worker in background (fetching GPX client-side if needed)
+                if (willParseGpx && (!currentData || isCurrentlyPolyline || currentKey !== cacheKey) && !loadingTrailIds.has(trailId)) {
                     loadingTrailIds.add(trailId);
                     loadingTrailCount++;
 
-                    void gpxWorkerService
-                        .parseGpxToGeoJSON(cacheKey, t.expand.gpx_data)
+                    const loadGpxString = async (): Promise<string> => {
+                        if (t.expand?.gpx_data) {
+                            return t.expand.gpx_data;
+                        }
+                        if (lazyLoadGpx && t.gpx) {
+                            const data = await fetchGPX(t);
+                            if (!t.expand) {
+                                t.expand = {};
+                            }
+                            t.expand.gpx_data = data;
+                            return data;
+                        }
+                        throw new Error("No GPX data available");
+                    };
+
+                    void loadGpxString()
+                        .then((gpxString) => gpxWorkerService.parseGpxToGeoJSON(cacheKey, gpxString))
                         .then((fc) => {
                             if (!trails.some((cur) => cur.id === trailId)) {
                                 return;
