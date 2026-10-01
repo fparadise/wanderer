@@ -147,7 +147,7 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let gpxDataMap: Record<string, FeatureCollection> = $state({});
+    let gpxDataMap: Record<string, FeatureCollection> = $state.raw({});
     let staticMapData = $derived(getStaticMapData(trails, serverClusters));
     let clusterData = $derived(staticMapData[0]);
     let previewData = $derived(staticMapData[1]);
