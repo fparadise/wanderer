@@ -242,6 +242,7 @@
     }
 
     const loadingTrailIds = new Set<string>();
+    const activeAbortControllers = new Map<string, AbortController>();
     let loadingTrailCount = $state(0);
     let isGpxLoading = $derived(loadingTrailCount > 0);
 
@@ -265,6 +266,13 @@
         }
 
         untrack(() => {
+            for (const [id, controller] of activeAbortControllers.entries()) {
+                if (!currentTrails.some((cur) => cur.id === id)) {
+                    controller.abort();
+                    activeAbortControllers.delete(id);
+                }
+            }
+
             currentTrails.forEach((t) => {
                 const trailId = t.id;
                 if (!trailId) return;
@@ -311,12 +319,18 @@
                     loadingTrailIds.add(trailId);
                     loadingTrailCount++;
 
+                    let abortController: AbortController | undefined;
+                    if (lazyLoadGpx && t.gpx && !t.expand?.gpx_data) {
+                        abortController = new AbortController();
+                        activeAbortControllers.set(trailId, abortController);
+                    }
+
                     const loadGpxString = async (): Promise<string> => {
                         if (t.expand?.gpx_data) {
                             return t.expand.gpx_data;
                         }
                         if (lazyLoadGpx && t.gpx) {
-                            const data = await fetchGPX(t);
+                            const data = await fetchGPX(t, fetch, abortController?.signal);
                             if (!t.expand) {
                                 t.expand = {};
                             }
@@ -337,9 +351,13 @@
                             gpxDataMap = { ...gpxDataMap, [trailId]: fc };
                         })
                         .catch((err) => {
+                            if (err instanceof DOMException && err.name === "AbortError") {
+                                return;
+                            }
                             console.error(`Failed to load/parse GPX for trail ${trailId}`, err);
                         })
                         .finally(() => {
+                            activeAbortControllers.delete(trailId);
                             loadingTrailIds.delete(trailId);
                             loadingTrailCount--;
                         });
@@ -1209,6 +1227,8 @@
     }
 
     onDestroy(() => {
+        activeAbortControllers.forEach((controller) => controller.abort());
+        activeAbortControllers.clear();
         map?.remove();
     });
 
