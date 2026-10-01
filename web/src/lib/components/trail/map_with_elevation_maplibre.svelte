@@ -282,13 +282,14 @@
                     return;
                 }
 
-                // 3. Immediate fallback to coarse polyline if available
+                // 3. Immediate fallback to coarse polyline if available (only for trails where full GPX will be parsed)
                 const currentData = gpxDataMap[trailId];
                 const isCurrentlyPolyline = currentData?.features?.[0]?.properties?.is_polyline;
-                if (t.polyline && !currentData) {
+                if (t.polyline && !currentData && t.expand?.gpx_data) {
                     const polylineFc = polylineToFeatureCollection(t.polyline);
                     tagBoundingBox(polylineFc, t.bounding_box_diagonal);
                     gpxDataMap = { ...gpxDataMap, [trailId]: polylineFc };
+                    // Intentionally no return: fall through to step 4 to parse full GPX in background
                 }
 
                 // 4. Parse full GPX via worker in background
